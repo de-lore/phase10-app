@@ -1,0 +1,1501 @@
+<!doctype html>
+<html lang="de" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#01696f">
+  <link rel="manifest" href="manifest.json">
+  <title>Phase 10 App</title>
+  <style>
+    :root {
+      --bg: #f5f4ef;
+      --surface: #ffffff;
+      --surface-2: #eeece4;
+      --text: #1f1e1b;
+      --muted: #6e6b63;
+      --primary: #01696f;
+      --border: #dcd7cd;
+      --border-dark: #b8b3a8;
+      --success: #2e7d32;
+      --success-bg: #e8f5e9;
+      --warning: #da7101;
+      --warning-bg: #fdf2e9;
+      --gold: #d4a017;
+      --header-h: 54px;
+      --p-gruen: #2e7d32;
+      --p-gelb: #d4a017;
+      --p-blau: #1565c0;
+      --p-rot: #c62828;
+      --p-braun: #6d4c41;
+      --p-grau: #616161;
+    }
+    [data-theme="dark"] {
+      --bg: #121316;
+      --surface: #1c1d22;
+      --surface-2: #272a33;
+      --text: #f0ede6;
+      --muted: #9e9a91;
+      --primary: #4eb3bc;
+      --border: #33363f;
+      --border-dark: #474b57;
+      --success: #81c784;
+      --success-bg: #1b2e1c;
+      --warning: #fdab43;
+      --warning-bg: #322112;
+      --gold: #f5c042;
+      --p-gruen: #66bb6a;
+      --p-gelb: #fdd835;
+      --p-blau: #64b5f6;
+      --p-rot: #ef5350;
+      --p-braun: #a1887f;
+      --p-grau: #9e9e9e;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      overflow: hidden;
+    }
+    button, input, select { font: inherit; }
+    /* Header */
+    .app-header {
+      height: var(--header-h);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+    .app-title-group { display: flex; flex-direction: column; overflow: hidden; }
+    .app-title { font-size: 1.05rem; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+    .app-subtitle { font-size: 0.74rem; color: var(--muted); }
+    .app-header-actions { display: flex; gap: 6px; align-items: center; }
+    .btn-icon {
+      height: 34px;
+      padding: 0 9px;
+      border-radius: 9px;
+      border: 1px solid var(--border-dark);
+      background: var(--surface-2);
+      color: var(--text);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 600;
+      box-shadow: 0 2px 0 var(--border-dark);
+      transition: all 0.1s ease;
+    }
+    .btn-icon:active { transform: translateY(2px); box-shadow: none; }
+    .btn-icon.primary { background: var(--primary); color: #fff; border-color: var(--primary); box-shadow: 0 2px 0 rgba(0,0,0,0.25); }
+    /* Obere Tasten-Leiste */
+    .app-top-nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 6px 10px;
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+      overflow-x: auto;
+      z-index: 9;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+    }
+    .nav-tab {
+      flex: 1;
+      min-height: 38px;
+      min-width: 65px;
+      background: var(--surface-2);
+      border: 1.5px solid var(--border-dark);
+      border-radius: 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 700;
+      box-shadow: 0 2px 0 var(--border-dark);
+      transition: all 0.12s ease;
+      user-select: none;
+      white-space: nowrap;
+      padding: 0 6px;
+    }
+    .nav-tab:hover { background: color-mix(in srgb, var(--primary) 8%, var(--surface-2)); border-color: var(--primary); }
+    .nav-tab:active { transform: translateY(2px); box-shadow: 0 0 0 var(--border-dark); }
+    .nav-tab.active {
+      background: var(--primary) !important;
+      color: #ffffff !important;
+      border-color: var(--primary) !important;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.25);
+      transform: translateY(1px);
+    }
+    .nav-tab-icon { font-size: 1rem; line-height: 1; }
+    /* Main Container */
+    .app-main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 14px;
+      width: 100%;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    .app-main::-webkit-scrollbar { display: none; }
+    #view-setup, #view-round, #view-history, #view-evening, #view-archive {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    #view-scores { max-width: 100%; width: 100%; }
+    .view { display: none; }
+    .view.active { display: block; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+    .input, .select {
+      width: 100%;
+      min-height: 38px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      padding: 6px 10px;
+      font-size: 0.9rem;
+    }
+    .select-compact {
+      width: auto;
+      min-height: 30px;
+      padding: 2px 8px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      border-radius: 8px;
+      border: 1.5px solid var(--border-dark);
+      background: var(--surface-2);
+    }
+    .btn {
+      min-height: 38px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border-dark);
+      background: var(--surface);
+      color: var(--text);
+      padding: 8px 14px;
+      cursor: pointer;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      box-shadow: 0 2px 0 var(--border-dark);
+      transition: all 0.1s ease;
+    }
+    .btn:active { transform: translateY(2px); box-shadow: none; }
+    .btn.primary { background: var(--primary); color: #fff; border-color: var(--primary); box-shadow: 0 2px 0 rgba(0,0,0,0.25); }
+    .btn.warn { background: var(--warning); color: #fff; border-color: var(--warning); box-shadow: 0 2px 0 rgba(0,0,0,0.25); }
+    .btn.ghost { background: transparent; box-shadow: none; border-color: transparent; }
+    .btn.full { width: 100%; }
+    .player-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 700;
+      font-size: 0.88rem;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--p-col) 15%, var(--surface));
+      border: 1px solid color-mix(in srgb, var(--p-col) 30%, var(--border));
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .dealer-chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #ffe680 0%, #d4a017 55%, #946800 100%);
+      border: 1.5px dashed rgba(255, 255, 255, 0.9);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.8);
+      color: #3b2400;
+      font-weight: 900;
+      font-size: 0.72rem;
+      flex-shrink: 0;
+      user-select: none;
+    }
+    .round-player-row {
+      display: grid;
+      grid-template-columns: minmax(95px, 1.2fr) minmax(115px, 1.8fr) 68px;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 8px;
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--p-col) 8%, var(--surface));
+      border: 1.5px solid color-mix(in srgb, var(--p-col) 24%, var(--border));
+      margin-bottom: 6px;
+      transition: all 0.15s ease;
+    }
+    .round-player-row.is-winner {
+      border: 2px solid var(--gold) !important;
+      background: color-mix(in srgb, var(--gold) 15%, var(--surface)) !important;
+      box-shadow: 0 0 10px rgba(212, 160, 23, 0.35);
+    }
+    .round-player-info {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      min-width: 0;
+    }
+    .round-player-sub {
+      font-size: 0.72rem;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .round-player-row.is-winner .round-player-sub {
+      color: var(--gold);
+      font-weight: 700;
+    }
+    .setup-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 10px;
+      margin: 12px 0;
+    }
+    .setup-box {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px;
+      display: grid;
+      gap: 6px;
+      position: relative;
+    }
+    .setup-box-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .order-btn-group {
+      display: flex;
+      gap: 4px;
+    }
+    .btn-mini {
+      height: 26px;
+      width: 26px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      border: 1px solid var(--border-dark);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: bold;
+    }
+    .dealer-select-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      user-select: none;
+      margin-top: 2px;
+    }
+    .edit-banner {
+      background: var(--warning-bg);
+      border: 1px solid var(--warning);
+      border-radius: 12px;
+      padding: 8px 12px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .scores-grid-container {
+      display: grid;
+      grid-template-columns: repeat(var(--p-count, 4), minmax(240px, 1fr));
+      gap: 12px;
+      width: 100%;
+      overflow-x: auto;
+      padding-bottom: 14px;
+    }
+    .player-card {
+      background: color-mix(in srgb, var(--p-col) 10%, var(--surface));
+      border: 1px solid color-mix(in srgb, var(--p-col) 26%, var(--border));
+      border-radius: 16px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+    }
+    .phase-full-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 12px;
+    }
+    .p-badge-full {
+      padding: 8px 10px;
+      border-radius: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      line-height: 1.3;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .p-badge-full.done { background: var(--success-bg); border-color: var(--success); }
+    .p-badge-full .check-mark { font-weight: 900; font-size: 1rem; flex-shrink: 0; color: var(--muted); }
+    .p-badge-full.done .check-mark { color: var(--success); }
+    .p-tag { font-size: 0.8rem; font-weight: 700; color: var(--muted); flex-shrink: 0; min-width: 30px; }
+    .p-badge-full.done .p-tag { color: var(--success); }
+    .p-desc { font-size: 0.95rem; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
+    .p-badge-full.done .p-desc { color: var(--success); font-weight: 800; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-size: 0.82rem; }
+    .file-input { display: none; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-title-group">
+      <div class="app-title" id="appTitle">Phase 10 App</div>
+      <div class="app-subtitle" id="appSubtitle">OneDrive Modus</div>
+    </div>
+    <div class="app-header-actions">
+      <button class="btn-icon primary" id="btnInstall" style="display:none;">📲 App</button>
+      <input type="file" id="filePicker" class="file-input" accept=".json">
+      <button class="btn-icon" id="btnLoad" title="Gruppe aus OneDrive (.json) laden">📂 Laden</button>
+      <button class="btn-icon primary" id="btnSave" title="In OneDrive-Ordner speichern">💾 Speichern</button>
+      <button class="btn-icon" id="btnNew" title="Neue Gruppe">✨ Neu</button>
+      <button class="btn-icon" id="btnTheme" title="Theme wechseln">🌓</button>
+    </div>
+  </header>
+  <nav class="app-top-nav">
+    <button class="nav-tab active" data-view="view-round">
+      <span class="nav-tab-icon">🎯</span><span>Runde</span>
+    </button>
+    <button class="nav-tab" data-view="view-scores">
+      <span class="nav-tab-icon">📊</span><span>Phasen</span>
+    </button>
+    <button class="nav-tab" data-view="view-history">
+      <span class="nav-tab-icon">📜</span><span>Verlauf</span>
+    </button>
+    <button class="nav-tab" data-view="view-evening">
+      <span class="nav-tab-icon">🏆</span><span>Abend</span>
+    </button>
+    <button class="nav-tab" data-view="view-archive">
+      <span class="nav-tab-icon">🏛️</span><span>Archiv</span>
+    </button>
+  </nav>
+  <main class="app-main">
+    <!-- Vorlage / Setup -->
+    <section class="view active" id="view-setup">
+      <div class="card">
+        <h2 style="margin:0 0 4px 0; font-size:1.15rem;">Neue Gruppe / Abend anlegen</h2>
+        <div style="color:var(--muted); font-size:0.82rem; margin-bottom:12px;">
+          Lege Namen, Sitzreihenfolge (▲ / ▼) und den Start-Dealer fest.
+        </div>
+        <div style="display:grid; gap:10px;">
+          <div>
+            <label style="font-size:0.82rem;">Name der Gruppe</label>
+            <input class="input" id="setupGroupName" placeholder="z. B. Phase 10 Runde">
+          </div>
+          <div>
+            <label style="font-size:0.82rem;">Anzahl Spieler</label>
+            <select class="select" id="setupPlayerCount">
+              <option value="2">2 Spieler</option>
+              <option value="3">3 Spieler</option>
+              <option value="4" selected>4 Spieler</option>
+              <option value="5">5 Spieler</option>
+              <option value="6">6 Spieler</option>
+            </select>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+            <div>
+              <label style="font-size:0.82rem;">Start-Variante</label>
+              <select class="select" id="setupVariant">
+                <option value="classic">Klassisch (10 Phasen)</option>
+                <option value="master">10 Phasen Master</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:0.82rem;">Start-Modus</label>
+              <select class="select" id="setupMode">
+                <option value="sequential">In Reihenfolge</option>
+                <option value="free">Beliebige Phase</option>
+              </select>
+            </div>
+          </div>
+          <div class="setup-grid" id="setupPlayersGrid"></div>
+          <button class="btn primary full" id="btnStartGame" style="margin-top:4px;">Gruppe starten</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Runde eingeben -->
+    <section class="view" id="view-round">
+      <div class="card" id="roundFinishBanner" style="display:none; background:var(--success-bg); border-color:var(--success); color:var(--success);">
+        <strong id="finishWinnerText" style="font-size:1.05rem;">🎉 Spiel beendet!</strong>
+        <div style="margin-top:10px; background:var(--surface); border:1.5px solid var(--border-dark); border-radius:12px; padding:10px; color:var(--text);">
+          <div style="font-weight:700; font-size:0.85rem; margin-bottom:6px;">Einstellungen fürs nächste Spiel:</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+            <div>
+              <label style="font-size:0.75rem; color:var(--muted); font-weight:600;">Variante</label>
+              <select class="select" id="nextGameVariant" style="min-height:34px; padding:4px 8px; font-size:0.85rem;">
+                <option value="classic">Klassisch (10 Phasen)</option>
+                <option value="master">10 Phasen Master</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:0.75rem; color:var(--muted); font-weight:600;">Modus</label>
+              <select class="select" id="nextGameMode" style="min-height:34px; padding:4px 8px; font-size:0.85rem;">
+                <option value="sequential">In Reihenfolge</option>
+                <option value="free">Beliebige Phase</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn primary full" id="btnNextGame">Nächstes Spiel starten</button>
+        </div>
+      </div>
+      <div class="card" id="roundInputCard">
+        <div id="roundEditNotice" class="edit-banner" style="display:none;">
+          <div>
+            <strong style="color:var(--warning); font-size:0.88rem;">✏️ Korrekturmodus</strong>
+            <span style="font-size:0.78rem; color:var(--muted); margin-left:6px;">Folgerunden werden neu berechnet.</span>
+          </div>
+          <button class="btn ghost" id="btnCancelEdit" style="min-height:30px; padding:4px 8px; font-size:0.8rem;">Abbrechen</button>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
+          <div>
+            <h2 style="margin:0; font-size:1.05rem;" id="roundCardTitle">Spiel 1 – Runde 1</h2>
+            <div style="font-size:0.8rem; color:var(--muted); margin-top:2px;" id="roundDealerLine">Dealer: -</div>
+          </div>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <select class="select-compact" id="curGameVariant" title="Variante dieses Spiels">
+              <option value="classic">Klassisch</option>
+              <option value="master">Master</option>
+            </select>
+            <select class="select-compact" id="curGameMode" title="Modus dieses Spiels">
+              <option value="sequential">Reihenfolge</option>
+              <option value="free">Beliebig</option>
+            </select>
+            <button class="btn-icon" id="btnUndoRound" style="min-height:30px; padding:2px 8px; font-size:0.78rem;">↩️ Letzte</button>
+          </div>
+        </div>
+        <div id="roundPlayersList"></div>
+        <div style="margin-top:10px;">
+          <button class="btn primary full" id="btnSaveRound">Runde werten</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Phasen & Punkte -->
+    <section class="view" id="view-scores">
+      <div id="scoresVariantSub" style="font-size:0.82rem; color:var(--muted); margin-bottom:8px; font-weight:700;"></div>
+      <div class="scores-grid-container" id="scoresGrid"></div>
+    </section>
+
+    <!-- Rundenhistorie -->
+    <section class="view" id="view-history">
+      <div id="historyList"></div>
+    </section>
+
+    <!-- Abendauswertung -->
+    <section class="view" id="view-evening">
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+          <div>
+            <h2 style="margin:0; font-size:1.1rem;">Aktuelle Abend-Rangliste</h2>
+            <div style="font-size:0.8rem; color:var(--muted); margin-top:2px;">
+              Plätze aller Spiele dieses Abends. (Kasse: 0 € für Platz 1, +5 € je weiterem Platz)
+            </div>
+          </div>
+          <button class="btn warn" id="btnArchiveEvening" style="display:none;">
+            📦 Abend abschließen & archivieren
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead id="eveningTableHead"></thead>
+            <tbody id="eveningTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Langzeit-Archiv -->
+    <section class="view" id="view-archive">
+      <div class="card">
+        <h2 style="margin:0 0 4px 0; font-size:1.1rem;">🏆 Ewige Tabelle (Gesamtauswertung)</h2>
+        <div style="font-size:0.8rem; color:var(--muted); margin-bottom:10px;">
+          Zusammenfassung aller bisher archivierten Abende dieser Gruppe.
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Spieler</th>
+                <th>Abende</th>
+                <th>🥇 Siege</th>
+                <th>Spiele</th>
+                <th>Ø Platz</th>
+                <th>Kasse gesamt</th>
+              </tr>
+            </thead>
+            <tbody id="allTimeTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card" style="margin-top:14px;">
+        <h2 style="margin:0 0 4px 0; font-size:1.1rem;">📅 Archivierte Abende</h2>
+        <div style="font-size:0.8rem; color:var(--muted); margin-bottom:10px;">
+          Alle gespeicherten Abende im Detail.
+        </div>
+        <div id="archivedEveningsList"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const PHASES_CLASSIC = {
+      1: "2 Drillinge", 2: "1 Drilling + 1 Viererfolge", 3: "1 Vierling + 1 Viererfolge",
+      4: "1 Siebenerfolge", 5: "1 Achterfolge", 6: "1 Neunerfolge", 7: "2 Vierlinge",
+      8: "7 Karten einer Farbe", 9: "1 Fünfling + 1 Zwilling", 10: "1 Fünfling + 1 Drilling"
+    };
+    const PHASES_MASTER = {
+      1: "4 Zwillinge", 2: "6 Karten einer Farbe", 3: "1 Vierling + 1 Viererfolge",
+      4: "1 Achterfolge", 5: "7 Karten einer Farbe", 6: "1 Neunerfolge", 7: "2 Vierlinge",
+      8: "1 Farbenfolge (4) + 1 Drilling", 9: "1 Fünfling + 1 Drilling", 10: "1 Fünfling + 1 Dreierfolge Farbe"
+    };
+    const COLORS = {
+      gruen: { label: "Grün", css: "var(--p-gruen)" },
+      gelb: { label: "Gelb", css: "var(--p-gelb)" },
+      blau: { label: "Blau", css: "var(--p-blau)" },
+      rot: { label: "Rot", css: "var(--p-rot)" },
+      braun: { label: "Braun", css: "var(--p-braun)" },
+      grau: { label: "Grau", css: "var(--p-grau)" }
+    };
+    const COLOR_KEYS = Object.keys(COLORS);
+    const STORAGE_KEY = "phase10_pwa_session_v3";
+
+    const defaultState = () => ({
+      groupName: "",
+      playerCount: 4,
+      gameVariant: "classic",
+      phaseMode: "sequential",
+      theme: "light",
+      started: false,
+      gameFinished: false,
+      gameNumber: 1,
+      dealerOffset: 0,
+      players: [],
+      eveningPlayers: [],
+      rounds: [],
+      eveningSeries: [],
+      archivedEvenings: []
+    });
+
+    let state = defaultState();
+    let fileHandle = null;
+    let PHASES = PHASES_CLASSIC;
+    let editingRoundIndex = null;
+    let setupFormData = [];
+
+    function applyVariant(variant) {
+      state.gameVariant = variant === "master" ? "master" : "classic";
+      PHASES = state.gameVariant === "master" ? PHASES_MASTER : PHASES_CLASSIC;
+    }
+
+    function getPlayerColor(key) {
+      return COLORS[key]?.css || COLORS.gruen.css;
+    }
+
+    function saveAutoStorage() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (e) {}
+    }
+
+    function loadAutoStorage() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return false;
+        const loaded = JSON.parse(raw);
+        if (!loaded || typeof loaded !== "object") return false;
+        state = Object.assign(defaultState(), loaded);
+        if (!Array.isArray(state.archivedEvenings)) state.archivedEvenings = [];
+        state.dealerOffset = Number(state.dealerOffset) || 0;
+        normalizePlayers();
+        applyVariant(state.gameVariant || "classic");
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function normalizePlayers() {
+      if (!Array.isArray(state.players)) state.players = [];
+      state.players.forEach((p, idx) => {
+        p.id = p.id ?? (idx + 1);
+        p.name = p.name || `Spieler ${idx + 1}`;
+        p.color = p.color || COLOR_KEYS[idx % COLOR_KEYS.length];
+        p.totalPoints = Number(p.totalPoints) || 0;
+        p.currentPhase = Number(p.currentPhase) || 0;
+        if (!Array.isArray(p.completedPhases)) p.completedPhases = [];
+      });
+      if (!Array.isArray(state.eveningPlayers) || !state.eveningPlayers.length) {
+        state.eveningPlayers = state.players.map(p => ({ id: p.id, name: p.name, color: p.color }));
+      }
+    }
+
+    const views = document.querySelectorAll(".view");
+    const navTabs = document.querySelectorAll(".nav-tab");
+    const setupPlayersGrid = document.getElementById("setupPlayersGrid");
+    const setupPlayerCount = document.getElementById("setupPlayerCount");
+
+    function setView(id) {
+      views.forEach(v => v.classList.toggle("active", v.id === id));
+      navTabs.forEach(t => t.classList.toggle("active", t.dataset.view === id));
+    }
+
+    navTabs.forEach(t => {
+      t.addEventListener("click", () => {
+        if (!state.started && t.dataset.view !== "view-setup" && t.dataset.view !== "view-archive") {
+          return alert("Bitte zuerst eine Gruppe starten oder eine Datei laden.");
+        }
+        setView(t.dataset.view);
+      });
+    });
+
+    function saveCurrentSetupInputs() {
+      const boxes = document.querySelectorAll(".setup-box");
+      if (!boxes.length) return;
+      setupFormData = [];
+      boxes.forEach((box, i) => {
+        const name = box.querySelector(".s-name")?.value.trim() || "";
+        const color = box.querySelector(".s-col")?.value || COLOR_KEYS[i % COLOR_KEYS.length];
+        const isDealer = box.querySelector(".s-dealer")?.checked || false;
+        setupFormData.push({ name, color, isDealer });
+      });
+    }
+
+    function renderSetupPlayerFields() {
+      saveCurrentSetupInputs();
+      const count = Number(setupPlayerCount.value) || 4;
+
+      while (setupFormData.length < count) {
+        const i = setupFormData.length;
+        setupFormData.push({
+          name: state.players[i]?.name || `Spieler ${i + 1}`,
+          color: state.players[i]?.color || COLOR_KEYS[i % COLOR_KEYS.length],
+          isDealer: i === 0
+        });
+      }
+      setupFormData = setupFormData.slice(0, count);
+
+      if (!setupFormData.some(f => f.isDealer)) {
+        if (setupFormData[0]) setupFormData[0].isDealer = true;
+      }
+
+      setupPlayersGrid.innerHTML = "";
+      setupFormData.forEach((f, i) => {
+        const box = document.createElement("div");
+        box.className = "setup-box";
+        box.innerHTML = `
+          <div class="setup-box-header">
+            <strong>Platz ${i + 1}</strong>
+            <div class="order-btn-group">
+              <button type="button" class="btn-mini" onclick="movePlayer(${i}, -1)" ${i === 0 ? "disabled" : ""} title="Nach oben">▲</button>
+              <button type="button" class="btn-mini" onclick="movePlayer(${i}, 1)" ${i === count - 1 ? "disabled" : ""} title="Nach unten">▼</button>
+            </div>
+          </div>
+          <input class="input s-name" placeholder="Name" value="${f.name}">
+          <select class="select s-col">
+            ${COLOR_KEYS.map(k => `<option value="${k}" ${f.color === k ? "selected" : ""}>${COLORS[k].label}</option>`).join("")}
+          </select>
+          <label class="dealer-select-label">
+            <input type="radio" name="startDealer" class="s-dealer" value="${i}" ${f.isDealer ? "checked" : ""}>
+            <span>🃏 Start-Dealer</span>
+          </label>
+        `;
+        setupPlayersGrid.appendChild(box);
+      });
+    }
+
+    window.movePlayer = function(idx, direction) {
+      saveCurrentSetupInputs();
+      const target = idx + direction;
+      if (target < 0 || target >= setupFormData.length) return;
+      const tmp = setupFormData[idx];
+      setupFormData[idx] = setupFormData[target];
+      setupFormData[target] = tmp;
+      renderSetupPlayerFields();
+    };
+
+    setupPlayerCount.addEventListener("change", renderSetupPlayerFields);
+
+    document.getElementById("btnStartGame").addEventListener("click", () => {
+      saveCurrentSetupInputs();
+      const count = Number(setupPlayerCount.value);
+      const names = setupFormData.map(p => p.name.trim());
+      const colors = setupFormData.map(p => p.color);
+      const dealerIdx = setupFormData.findIndex(p => p.isDealer);
+
+      if (names.some(n => !n)) return alert("Bitte alle Spielernamen eintragen.");
+
+      state.groupName = document.getElementById("setupGroupName").value.trim() || "Phase 10";
+      state.playerCount = count;
+      state.dealerOffset = dealerIdx >= 0 ? dealerIdx : 0;
+      applyVariant(document.getElementById("setupVariant").value);
+      state.phaseMode = document.getElementById("setupMode").value;
+
+      const configs = names.map((name, idx) => ({ id: idx + 1, name, color: colors[idx] }));
+      state.players = configs.map(c => ({ ...c, totalPoints: 0, currentPhase: 0, completedPhases: [] }));
+      state.eveningPlayers = configs.map(c => ({ ...c }));
+      state.rounds = [];
+      state.started = true;
+      state.gameFinished = false;
+      state.gameNumber = 1;
+      editingRoundIndex = null;
+
+      updateHeader();
+      renderAll();
+      saveAutoStorage();
+      setView("view-round");
+    });
+
+    function updateHeader() {
+      document.getElementById("appTitle").textContent = state.groupName || "Phase 10 App";
+      document.getElementById("appSubtitle").textContent = `Spiel ${state.gameNumber} • ${state.players.length} Spieler`;
+    }
+
+    function getDealer(rNo) {
+      if (!state.players.length) return null;
+      const offset = Number(state.dealerOffset) || 0;
+      return state.players[(offset + (rNo - 1)) % state.players.length];
+    }
+
+    document.getElementById("curGameVariant").addEventListener("change", (e) => {
+      if (state.rounds.length > 0) {
+        if (!confirm("Achtung: Es wurden bereits Runden gespielt. Variante wirklich mitten im Spiel ändern?")) {
+          e.target.value = state.gameVariant;
+          return;
+        }
+      }
+      applyVariant(e.target.value);
+      saveAutoStorage();
+      renderAll();
+    });
+
+    document.getElementById("curGameMode").addEventListener("change", (e) => {
+      if (state.rounds.length > 0) {
+        if (!confirm("Achtung: Es wurden bereits Runden gespielt. Modus wirklich mitten im Spiel ändern?")) {
+          e.target.value = state.phaseMode;
+          return;
+        }
+      }
+      state.phaseMode = e.target.value;
+      saveAutoStorage();
+      renderAll();
+    });
+
+    function renderRoundView() {
+      if (!state.started) return;
+      const winner = state.players.find(p => p.completedPhases.length === 10);
+      const banner = document.getElementById("roundFinishBanner");
+      const card = document.getElementById("roundInputCard");
+      const editNotice = document.getElementById("roundEditNotice");
+      const saveBtn = document.getElementById("btnSaveRound");
+      const undoBtn = document.getElementById("btnUndoRound");
+
+      document.getElementById("curGameVariant").value = state.gameVariant;
+      document.getElementById("curGameMode").value = state.phaseMode;
+
+      if (state.gameFinished && winner && editingRoundIndex === null) {
+        banner.style.display = "block";
+        document.getElementById("finishWinnerText").textContent = `🎉 ${winner.name} hat alle 10 Phasen beendet!`;
+        document.getElementById("nextGameVariant").value = state.gameVariant;
+        document.getElementById("nextGameMode").value = state.phaseMode;
+        card.style.display = "none";
+        return;
+      }
+      banner.style.display = "none";
+      card.style.display = "block";
+
+      const isEditing = editingRoundIndex !== null;
+      editNotice.style.display = isEditing ? "flex" : "none";
+      undoBtn.style.display = isEditing ? "none" : "inline-flex";
+      saveBtn.textContent = isEditing ? "Korrektur speichern" : "Runde werten";
+      saveBtn.className = isEditing ? "btn warn full" : "btn primary full";
+
+      const targetRound = isEditing ? state.rounds[editingRoundIndex] : null;
+      const rNo = isEditing ? targetRound.round : state.rounds.length + 1;
+      const dealer = getDealer(rNo);
+
+      document.getElementById("roundCardTitle").textContent = isEditing
+        ? `Korrektur: Spiel ${targetRound.game} – Runde ${targetRound.round}`
+        : `Spiel ${state.gameNumber} – Runde ${rNo}`;
+
+      document.getElementById("roundDealerLine").innerHTML = dealer 
+        ? `<div style="display:inline-flex; align-items:center; gap:5px;">Dealer: <strong>${dealer.name}</strong> <span class="dealer-chip" title="Dealer">D</span></div>`
+        : "";
+
+      const prevPlayers = isEditing
+        ? (targetRound.snapBefore || state.players)
+        : state.players;
+
+      document.getElementById("roundPlayersList").innerHTML = state.players.map(p => {
+        const pBefore = prevPlayers.find(x => String(x.id) === String(p.id) || x.name === p.name) || p;
+        const next = pBefore.currentPhase + 1;
+        const existingEntry = isEditing && targetRound
+          ? targetRound.entries.find(e => String(e.playerId) === String(p.id) || e.name === p.name)
+          : null;
+        const currentSelectedPhase = existingEntry ? Number(existingEntry.phase) : 0;
+        const currentPoints = existingEntry !== null && existingEntry.points !== undefined ? existingEntry.points : "";
+
+        let opts = `<option value="0" ${currentSelectedPhase === 0 ? "selected" : ""}>– Keine Phase –</option>`;
+        if (state.phaseMode === "sequential") {
+          const targetP = (currentSelectedPhase > 0) ? currentSelectedPhase : next;
+          if (targetP <= 10) {
+            opts += `<option value="${targetP}" ${currentSelectedPhase === targetP ? "selected" : ""}>P${targetP}: ${PHASES[targetP]}</option>`;
+          }
+        } else {
+          for (let n = 1; n <= 10; n++) {
+            if (!pBefore.completedPhases.includes(n) || currentSelectedPhase === n) {
+              opts += `<option value="${n}" ${currentSelectedPhase === n ? "selected" : ""}>P${n}: ${PHASES[n]}</option>`;
+            }
+          }
+        }
+
+        const isWinner = String(currentPoints).trim() === "0";
+
+        return `
+          <div class="round-player-row ${isWinner ? "is-winner" : ""}" id="row-${p.id}" style="--p-col:${getPlayerColor(p.color)};">
+            <div class="round-player-info">
+              <span class="player-chip">
+                <span>${p.name}</span>
+                ${dealer && String(dealer.id) === String(p.id) ? `<span class="dealer-chip" title="Dealer">D</span>` : ""}
+              </span>
+              <span class="round-player-sub" id="sub-${p.id}">
+                ${isWinner ? "★ Rundensieger" : `Vorher: P${pBefore.currentPhase} •${pBefore.totalPoints}P`}
+              </span>
+            </div>
+            <select class="select r-phase" data-id="${p.id}">
+              ${opts}
+            </select>
+            <input class="input r-points" data-id="${p.id}" type="number" min="0" step="5" placeholder="Pkt" value="${currentPoints}">
+          </div>
+        `;
+      }).join("");
+
+      document.querySelectorAll(".r-points").forEach(input => {
+        input.addEventListener("input", (e) => {
+          const pId = e.target.dataset.id;
+          const row = document.getElementById(`row-${pId}`);
+          const sub = document.getElementById(`sub-${pId}`);
+          const p = state.players.find(x => String(x.id) === String(pId));
+          const pBefore = (prevPlayers && prevPlayers.find(x => String(x.id) === String(pId))) || p || { currentPhase: 0, totalPoints: 0 };
+          const val = e.target.value.trim();
+          if (val === "0") {
+            if (row) row.classList.add("is-winner");
+            if (sub) sub.textContent = "★ Rundensieger";
+          } else {
+            if (row) row.classList.remove("is-winner");
+            if (sub) sub.textContent = `Vorher: P${pBefore.currentPhase} • ${pBefore.totalPoints}P`;
+          }
+        });
+      });
+    }
+
+    document.getElementById("btnCancelEdit").addEventListener("click", () => {
+      editingRoundIndex = null;
+      renderAll();
+      setView("view-history");
+    });
+
+    document.getElementById("btnSaveRound").addEventListener("click", () => {
+      const pEls = [...document.querySelectorAll(".r-phase")];
+      const ptEls = [...document.querySelectorAll(".r-points")];
+      const entries = [];
+
+      for (const p of state.players) {
+        const pSel = pEls.find(el => String(el.dataset.id) === String(p.id));
+        const ptIn = ptEls.find(el => String(el.dataset.id) === String(p.id));
+        if (!pSel || !ptIn) return alert("Eingabefeld nicht gefunden.");
+        const ptStr = ptIn.value.trim();
+        if (ptStr === "") return alert(`Bitte Punkte für ${p.name} eingeben.`);
+        const points = Number(ptStr);
+        if (isNaN(points) || points < 0) return alert(`Ungültige Punktzahl für ${p.name}.`);
+        entries.push({
+          playerId: p.id,
+          name: p.name,
+          color: p.color,
+          phase: Number(pSel.value) || 0,
+          points: points
+        });
+      }
+
+      if (entries.filter(e => e.points === 0).length !== 1) {
+        return alert("Genau ein Spieler muss 0 Punkte haben (Rundensieger).");
+      }
+
+      if (editingRoundIndex !== null) {
+        state.rounds[editingRoundIndex].entries = entries;
+        rebuildStateFromRounds();
+        editingRoundIndex = null;
+        renderAll();
+        saveAutoStorage();
+        setView("view-history");
+        alert("Runde erfolgreich korrigiert! Alle Punkte wurden neu berechnet.");
+        return;
+      }
+
+      const snapBefore = JSON.parse(JSON.stringify(state.players));
+
+      entries.forEach(e => {
+        const p = state.players.find(x => String(x.id) === String(e.playerId));
+        if (!p) return;
+        p.totalPoints += e.points;
+        if (e.phase > 0 && !p.completedPhases.includes(e.phase)) {
+          p.completedPhases.push(e.phase);
+          p.completedPhases.sort((a,b)=>a-b);
+        }
+        p.currentPhase = p.completedPhases.length ? Math.max(...p.completedPhases) : 0;
+        e.total = p.totalPoints;
+      });
+
+      state.rounds.push({
+        game: state.gameNumber,
+        round: state.rounds.length + 1,
+        entries,
+        snapBefore
+      });
+
+      if (state.players.some(p => p.completedPhases.length === 10)) {
+        state.gameFinished = true;
+        saveFinishedGame();
+      }
+
+      renderAll();
+      saveAutoStorage();
+      setView("view-scores");
+    });
+
+    function rebuildStateFromRounds() {
+      const freshPlayers = state.eveningPlayers.map(p => ({
+        ...p,
+        totalPoints: 0,
+        currentPhase: 0,
+        completedPhases: []
+      }));
+
+      state.rounds.forEach(r => {
+        r.snapBefore = JSON.parse(JSON.stringify(freshPlayers));
+        r.entries.forEach(e => {
+          const p = freshPlayers.find(x => String(x.id) === String(e.playerId) || x.name === e.name);
+          if (!p) return;
+          p.totalPoints += e.points;
+          if (e.phase > 0 && !p.completedPhases.includes(e.phase)) {
+            p.completedPhases.push(e.phase);
+            p.completedPhases.sort((a,b)=>a-b);
+          }
+          p.currentPhase = p.completedPhases.length ? Math.max(...p.completedPhases) : 0;
+          e.total = p.totalPoints;
+        });
+      });
+
+      state.players = freshPlayers;
+      state.gameFinished = state.players.some(p => p.completedPhases.length === 10);
+      state.eveningSeries = state.eveningSeries.filter(g => g.game !== state.gameNumber);
+      if (state.gameFinished) {
+        saveFinishedGame();
+      }
+    }
+
+    document.getElementById("btnUndoRound").addEventListener("click", () => {
+      if (!state.rounds.length) return alert("Es ist keine Runde zum Rückgängigmachen vorhanden.");
+      const last = state.rounds[state.rounds.length - 1];
+      const confirmDelete = confirm(
+        `Möchtest du Runde ${last.round} (Spiel ${last.game}) wirklich löschen?\n\nDie Punkte und Phasen dieser Runde werden für alle Spieler zurückgesetzt.`
+      );
+      if (!confirmDelete) return;
+
+      state.rounds.pop();
+      rebuildStateFromRounds();
+      editingRoundIndex = null;
+      renderAll();
+      saveAutoStorage();
+    });
+
+    function saveFinishedGame() {
+      const ranking = [...state.players].sort((a, b) => b.currentPhase - a.currentPhase || a.totalPoints - b.totalPoints);
+      const snapshot = ranking.map((p, idx) => ({
+        name: p.name,
+        color: p.color,
+        placement: idx + 1,
+        totalPoints: p.totalPoints,
+        phase: p.currentPhase
+      }));
+
+      const exIdx = state.eveningSeries.findIndex(g => g.game === state.gameNumber);
+      const payload = {
+        game: state.gameNumber,
+        ranking: snapshot,
+        gameVariant: state.gameVariant,
+        phaseMode: state.phaseMode
+      };
+
+      if (exIdx >= 0) state.eveningSeries[exIdx] = payload;
+      else state.eveningSeries.push(payload);
+    }
+
+    document.getElementById("btnNextGame").addEventListener("click", () => {
+      const selectedVar = document.getElementById("nextGameVariant").value;
+      const selectedMode = document.getElementById("nextGameMode").value;
+      applyVariant(selectedVar);
+      state.phaseMode = selectedMode;
+      state.gameNumber++;
+      state.rounds = [];
+      state.gameFinished = false;
+      state.players = state.eveningPlayers.map(p => ({ ...p, totalPoints: 0, currentPhase: 0, completedPhases: [] }));
+      editingRoundIndex = null;
+      updateHeader();
+      renderAll();
+      saveAutoStorage();
+      setView("view-round");
+    });
+
+    function renderScores() {
+      const container = document.getElementById("scoresGrid");
+      if (!state.players.length) return;
+      const sub = document.getElementById("scoresVariantSub");
+      if (sub) {
+        const vText = state.gameVariant === "master" ? "10 Phasen Master" : "Klassisch";
+        const mText = state.phaseMode === "free" ? "Beliebige Phase" : "In Reihenfolge";
+        sub.textContent = `Aktuell: ${vText} • ${mText}`;
+      }
+      container.style.setProperty("--p-count", state.players.length);
+
+      const sorted = [...state.players].sort((a,b) => b.currentPhase - a.currentPhase || a.totalPoints - b.totalPoints);
+      const nextDealer = getDealer(state.rounds.length + 1);
+
+      container.innerHTML = sorted.map((p, idx) => `
+        <div class="player-card" style="--p-col:${getPlayerColor(p.color)};">
+          <div style="display:flex; justify-content:space-between; align-items:start;">
+            <div>
+              <div style="font-weight:700; font-size:1.15rem; display:flex; align-items:center; gap:8px;">
+                <span>${idx + 1}. ${p.name}</span>
+                ${nextDealer && String(nextDealer.id) === String(p.id) ? `<span class="dealer-chip" title="Nächster Dealer">D</span>` : ""}
+              </div>
+              <div style="font-size:0.85rem; color:var(--muted); margin-top:2px;">
+                ${p.completedPhases.length} von 10 Phasen geschafft
+              </div>
+            </div>
+            <div style="font-size:1.8rem; font-weight:800;">${p.totalPoints}</div>
+          </div>
+          <div class="phase-full-list">
+            ${Object.keys(PHASES).map(Number).map(n => {
+              const isDone = p.completedPhases.includes(n);
+              return `
+                <div class="p-badge-full ${isDone ? "done" : ""}">
+                  <span class="check-mark">${isDone ? "✓" : "○"}</span>
+                  <span class="p-tag">P${n}:</span>
+                  <span class="p-desc">${PHASES[n]}</span>
+                </div>
+              `;
+            }).join("")}
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function renderHistory() {
+      const box = document.getElementById("historyList");
+      if (!state.rounds.length) {
+        box.innerHTML = `<div style="text-align:center; color:var(--muted); padding:20px;">Noch keine Runden gespielt.</div>`;
+        return;
+      }
+
+      box.innerHTML = [...state.rounds].map((r, originalIndex) => {
+        const w = r.entries.find(e => e.points === 0);
+        return `
+          <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+              <div>
+                <strong>Runde ${r.round} (Spiel ${r.game})</strong>
+                ${w ? `<span style="color:var(--gold); margin-left:8px; font-weight:700;">★ ${w.name}</span>` : ""}
+              </div>
+              <button class="btn-icon" onclick="startEditRound(${originalIndex})" style="min-height:30px; padding:3px 9px;">
+                ✏️ Korrigieren
+              </button>
+            </div>
+            <div style="margin-top:8px; display:grid; gap:4px; font-size:0.85rem;">
+              ${r.entries.map(e => `
+                <div style="display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px solid var(--border);">
+                  <span style="display:flex; align-items:center; gap:6px;">
+                    <span class="player-chip" style="--p-col:${getPlayerColor(e.color)}; padding:2px 8px; font-size:0.75rem;">${e.name}</span>
+                    <span>${e.phase > 0 ? `P${e.phase}: ${PHASES[e.phase]}` : "–"}</span>
+                  </span>
+                  <span><strong>+${e.points} Pkt</strong> (Gesamt:${e.total})</span>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        `;
+      }).reverse().join("");
+    }
+
+    window.startEditRound = function(index) {
+      editingRoundIndex = index;
+      setView("view-round");
+      renderAll();
+    };
+
+    function getEveningRankingRows() {
+      if (!state.eveningPlayers.length) return [];
+      const rows = state.eveningPlayers.map(p => {
+        const gScores = {};
+        state.eveningSeries.forEach(g => {
+          const entry = g.ranking.find(r => r.name === p.name);
+          if (entry) gScores[g.game] = entry.placement;
+        });
+        const sum = Object.values(gScores).reduce((a,b) => a+b, 0);
+        return { name: p.name, color: p.color, gScores, sum };
+      });
+      return rows.sort((a,b) => a.sum - b.sum);
+    }
+
+    function renderEvening() {
+      const games = [...new Set(state.eveningSeries.map(g => g.game))].sort((a,b)=>a-b);
+      const btnArchive = document.getElementById("btnArchiveEvening");
+      btnArchive.style.display = state.eveningSeries.length >= 1 ? "inline-flex" : "none";
+
+      document.getElementById("eveningTableHead").innerHTML = `
+        <tr>
+          <th>Platz</th><th>Spieler</th>${games.map(g => `<th>Spiel ${g}</th>`).join("")}<th>Summe</th><th>Kasse</th>
+        </tr>
+      `;
+
+      if (!state.eveningSeries.length) {
+        document.getElementById("eveningTableBody").innerHTML = `<tr><td colspan="${games.length + 4}" style="text-align:center; color:var(--muted);">Noch kein Spiel beendet.</td></tr>`;
+        return;
+      }
+
+      const rows = getEveningRankingRows();
+      document.getElementById("eveningTableBody").innerHTML = rows.map((r, idx) => `
+        <tr>
+          <td><strong>${idx + 1}</strong></td>
+          <td><span class="player-chip" style="--p-col:${getPlayerColor(r.color)};">${r.name}</span></td>
+          ${games.map(g => `<td>${r.gScores[g] ?? "–"}</td>`).join("")}
+          <td><strong>${r.sum}</strong></td>
+          <td><strong>${idx * 5} €</strong></td>
+        </tr>
+      `).join("");
+    }
+
+    document.getElementById("btnArchiveEvening").addEventListener("click", () => {
+      if (!state.eveningSeries.length) return alert("Es gibt noch keine beendeten Spiele an diesem Abend.");
+      const confirmArchive = confirm(
+        "Möchtest du den aktuellen Abend abschließen und ins Langzeit-Archiv übernehmen?\n\nDie Ergebnisse wandern in die ewige Tabelle und das Board wird für den nächsten Abend zurückgesetzt."
+      );
+      if (!confirmArchive) return;
+
+      const rows = getEveningRankingRows();
+      const now = new Date();
+      const dateStr = now.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+      const timeStr = now.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+
+      const archiveEntry = {
+        id: "abend-" + Date.now(),
+        date: `${dateStr} (${timeStr})`,
+        gameCount: state.eveningSeries.length,
+        ranking: rows.map((r, idx) => ({
+          place: idx + 1,
+          name: r.name,
+          color: r.color,
+          sumRank: r.sum,
+          cash: idx * 5
+        }))
+      };
+
+      if (!Array.isArray(state.archivedEvenings)) state.archivedEvenings = [];
+      state.archivedEvenings.unshift(archiveEntry);
+
+      state.eveningSeries = [];
+      state.rounds = [];
+      state.gameNumber = 1;
+      state.gameFinished = false;
+      state.players = state.eveningPlayers.map(p => ({ ...p, totalPoints: 0, currentPhase: 0, completedPhases: [] }));
+      editingRoundIndex = null;
+
+      updateHeader();
+      renderAll();
+      saveAutoStorage();
+      setView("view-archive");
+      alert("Der Abend wurde erfolgreich archiviert! Sichere den Stand mit 💾 Speichern in OneDrive.");
+    });
+
+    function renderArchiveView() {
+      if (!Array.isArray(state.archivedEvenings)) state.archivedEvenings = [];
+      const stats = {};
+
+      if (Array.isArray(state.eveningPlayers)) {
+        state.eveningPlayers.forEach(p => {
+          stats[p.name] = { name: p.name, color: p.color, eveningsCount: 0, wins: 0, totalGames: 0, rankSum: 0, cashSum: 0 };
+        });
+      }
+
+      state.archivedEvenings.forEach(eve => {
+        const ranking = eve.ranking || eve.players || [];
+        ranking.forEach(r => {
+          if (!stats[r.name]) {
+            stats[r.name] = { name: r.name, color: r.color || "grau", eveningsCount: 0, wins: 0, totalGames: 0, rankSum: 0, cashSum: 0 };
+          }
+          stats[r.name].eveningsCount++;
+          const place = Number(r.place || r.placement || 1);
+          if (place === 1) stats[r.name].wins++;
+          stats[r.name].totalGames += (eve.gameCount || 1);
+          stats[r.name].rankSum += place;
+          stats[r.name].cashSum += Number(r.cash !== undefined ? r.cash : (place - 1) * 5) || 0;
+        });
+      });
+
+      const allTimeRows = Object.values(stats)
+        .filter(s => s.eveningsCount > 0)
+        .sort((a,b) => b.wins - a.wins || (a.rankSum / a.eveningsCount) - (b.rankSum / b.eveningsCount));
+
+      const tbody = document.getElementById("allTimeTableBody");
+      if (!allTimeRows.length) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:16px;">Noch keine Abende archiviert. Schließe deinen ersten Abend unter „Abend“ ab.</td></tr>`;
+      } else {
+        tbody.innerHTML = allTimeRows.map(s => {
+          const avgRank = (s.rankSum / s.eveningsCount).toFixed(1);
+          return `
+            <tr>
+              <td><span class="player-chip" style="--p-col:${getPlayerColor(s.color)};">${s.name}</span></td>
+              <td><strong>${s.eveningsCount}</strong></td>
+              <td><span style="color:var(--gold); font-weight:700;">${s.wins} 🥇</span></td>
+              <td>${s.totalGames}</td>
+              <td>Ø ${avgRank}</td>
+              <td style="font-weight:700; color:var(--warning);">${s.cashSum} €</td>
+            </tr>
+          `;
+        }).join("");
+      }
+
+      const listContainer = document.getElementById("archivedEveningsList");
+      if (!state.archivedEvenings.length) {
+        listContainer.innerHTML = `<div style="text-align:center; color:var(--muted); padding:16px;">Bisher sind noch keine Abende im Archiv vorhanden.</div>`;
+      } else {
+        listContainer.innerHTML = state.archivedEvenings.map((eve, idx) => {
+          const ranking = eve.ranking || eve.players || [];
+          const dateStr = eve.date || eve.createdAt || "Unbekanntes Datum";
+          return `
+            <div style="background:var(--surface-2); border:1px solid var(--border); border-radius:12px; padding:10px 12px; margin-bottom:10px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <strong>🗓️ Abend vom ${dateStr}</strong>
+                <div style="display:flex; gap:8px; align-items:center;">
+                  <span style="font-size:0.8rem; color:var(--muted);">${eve.gameCount || 1} Spiel${eve.gameCount === 1 ? '' : 'e'}</span>
+                  <button class="btn ghost" onclick="deleteArchivedEvening(${idx})" style="min-height:26px; padding:2px 6px; font-size:0.75rem; color:var(--warning);">Löschen</button>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Platz</th>
+                      <th>Spieler</th>
+                      <th>Rangsumme</th>
+                      <th>Kasse</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${ranking.map(r => `
+                      <tr>
+                        <td>${r.place || r.placement || 1}.</td>
+                        <td><span class="player-chip" style="--p-col:${getPlayerColor(r.color)}; padding:2px 8px; font-size:0.75rem;">${r.name}</span></td>
+                        <td>${r.sumRank || r.totalRank || '–'}</td>
+                        <td><strong>${r.cash !== undefined ? r.cash : ((r.place || 1) - 1) * 5} €</strong></td>
+                      </tr>
+                    `).join("")}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          `;
+        }).join("");
+      }
+    }
+
+    window.deleteArchivedEvening = function(index) {
+      if (!confirm("Möchtest du diesen archivierten Abend wirklich aus der Historie löschen?")) return;
+      state.archivedEvenings.splice(index, 1);
+      renderArchiveView();
+      saveAutoStorage();
+    };
+
+    function renderAll() {
+      renderRoundView();
+      renderScores();
+      renderHistory();
+      renderEvening();
+      renderArchiveView();
+    }
+
+    // Direct OneDrive File Access
+    document.getElementById("btnSave").addEventListener("click", async () => {
+      if (!state.started && !state.archivedEvenings.length) {
+        return alert("Keine aktive Gruppe oder Historie zum Speichern vorhanden.");
+      }
+      const dataStr = JSON.stringify(state, null, 2);
+      if (window.showSaveFilePicker) {
+        try {
+          if (!fileHandle) {
+            const dateStr = new Date().toISOString().slice(0, 10);
+            fileHandle = await window.showSaveFilePicker({
+              suggestedName: `${(state.groupName || "Phase10").replace(/[^a-z0-9_-]/gi, "_")}_${dateStr}.json`,
+              types: [{ description: "JSON Datei", accept: { "application/json": [".json"] } }]
+            });
+          }
+          const writable = await fileHandle.createWritable();
+          await writable.write(dataStr);
+          await writable.close();
+          alert("Erfolgreich direkt im OneDrive-Ordner gespeichert!");
+          return;
+        } catch (err) {
+          if (err.name === "AbortError") return;
+        }
+      }
+      const blob = new Blob([dataStr], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `${(state.groupName || "Phase10")}.json`;
+      a.click();
+    });
+
+    document.getElementById("btnLoad").addEventListener("click", async () => {
+      if (window.showOpenFilePicker) {
+        try {
+          const [handle] = await window.showOpenFilePicker({
+            types: [{ description: "JSON Datei", accept: { "application/json": [".json"] } }]
+          });
+          fileHandle = handle;
+          const file = await fileHandle.getFile();
+          const text = await file.text();
+          loadStateFromJSON(text);
+          return;
+        } catch (err) {
+          if (err.name === "AbortError") return;
+        }
+      }
+      document.getElementById("filePicker").click();
+    });
+
+    document.getElementById("filePicker").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => loadStateFromJSON(evt.target.result);
+      reader.readAsText(file);
+      e.target.value = "";
+    });
+
+    function loadStateFromJSON(jsonText) {
+      try {
+        const loaded = JSON.parse(jsonText);
+        if (!loaded || typeof loaded !== "object") throw new Error();
+        state = Object.assign(defaultState(), loaded);
+        if (!Array.isArray(state.archivedEvenings)) state.archivedEvenings = [];
+        state.dealerOffset = Number(state.dealerOffset) || 0;
+        normalizePlayers();
+        applyVariant(state.gameVariant || "classic");
+        editingRoundIndex = null;
+        updateHeader();
+        renderAll();
+        saveAutoStorage();
+        setView(state.started ? "view-scores" : "view-archive");
+        alert(`Gruppe „${state.groupName || 'Phase 10'}“ geladen!`);
+      } catch (e) {
+        alert("Ungültige Phase-10-Datei.");
+      }
+    }
+
+    document.getElementById("btnNew").addEventListener("click", () => {
+      if (confirm("Neue Gruppe anlegen?")) {
+        fileHandle = null;
+        state = defaultState();
+        editingRoundIndex = null;
+        setupFormData = [];
+        renderSetupPlayerFields();
+        updateHeader();
+        renderAll();
+        saveAutoStorage();
+        setView("view-setup");
+      }
+    });
+
+    document.getElementById("btnTheme").addEventListener("click", () => {
+      const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      document.documentElement.dataset.theme = next;
+      state.theme = next;
+      saveAutoStorage();
+    });
+
+    // PWA Install Prompt
+    let deferredInstallPrompt = null;
+    const btnInstall = document.getElementById("btnInstall");
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js").catch(() => {});
+      });
+    }
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      btnInstall.style.display = "inline-flex";
+    });
+    btnInstall.addEventListener("click", async () => {
+      if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        const { outcome } = await deferredInstallPrompt.userChoice;
+        if (outcome === "accepted") btnInstall.style.display = "none";
+        deferredInstallPrompt = null;
+      }
+    });
+
+    // Initialisierung
+    if (loadAutoStorage()) {
+      document.documentElement.dataset.theme = state.theme || "light";
+      document.getElementById("setupGroupName").value = state.groupName || "";
+      setupPlayerCount.value = state.playerCount || 4;
+      document.getElementById("setupVariant").value = state.gameVariant || "classic";
+      document.getElementById("setupMode").value = state.phaseMode || "sequential";
+      updateHeader();
+      renderAll();
+      setView(state.started ? "view-round" : "view-setup");
+    } else {
+      renderSetupPlayerFields();
+    }
+  </script>
+</body>
+</html>
