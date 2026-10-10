@@ -373,6 +373,38 @@
     th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
     th { color: var(--muted); font-size: 0.82rem; }
     .file-input { display: none; }
+
+    /* Modal / Dialog Styling */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(2px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-content {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      width: 100%;
+      max-width: 550px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    }
+    .modal-body {
+      overflow-y: auto;
+      margin: 12px 0;
+      display: grid;
+      gap: 10px;
+    }
   </style>
 </head>
 <body>
@@ -407,6 +439,7 @@
       <span class="nav-tab-icon">🏛️</span><span>Archiv</span>
     </button>
   </nav>
+
   <main class="app-main">
     <!-- Vorlage / Setup -->
     <section class="view active" id="view-setup">
@@ -491,6 +524,7 @@
             <div style="font-size:0.8rem; color:var(--muted); margin-top:2px;" id="roundDealerLine">Dealer: -</div>
           </div>
           <div style="display:flex; gap:6px; align-items:center;">
+            <button class="btn-icon" id="btnOpenSeats" title="Sitzreihenfolge & Start-Dealer anpassen" style="min-height:30px; padding:2px 8px; font-size:0.78rem;">⚙️ Sitzordnung</button>
             <select class="select-compact" id="curGameVariant" title="Variante dieses Spiels">
               <option value="classic">Klassisch</option>
               <option value="master">Master</option>
@@ -576,6 +610,21 @@
     </section>
   </main>
 
+  <!-- Modal: Sitzordnung & Dealer für laufende/geladene Gruppe anpassen -->
+  <div class="modal-overlay" id="modalSeats">
+    <div class="modal-content">
+      <h3 style="margin:0 0 6px 0; font-size:1.1rem;">⚙️ Sitzordnung & Start-Dealer</h3>
+      <div style="font-size:0.8rem; color:var(--muted);">
+        Reihenfolge am Tisch anpassen (▲ / ▼) und festlegen, wer für diesen Abend / dieses Spiel als Start-Dealer beginnt.
+      </div>
+      <div class="modal-body" id="modalSeatsList"></div>
+      <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:8px;">
+        <button class="btn ghost" id="btnCancelSeats">Abbrechen</button>
+        <button class="btn primary" id="btnSaveSeats">Übernehmen</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const PHASES_CLASSIC = {
       1: "2 Drillinge", 2: "1 Drilling + 1 Viererfolge", 3: "1 Vierling + 1 Viererfolge",
@@ -620,6 +669,7 @@
     let PHASES = PHASES_CLASSIC;
     let editingRoundIndex = null;
     let setupFormData = [];
+    let modalSeatsData = [];
 
     function applyVariant(variant) {
       state.gameVariant = variant === "master" ? "master" : "classic";
@@ -794,6 +844,104 @@
       const offset = Number(state.dealerOffset) || 0;
       return state.players[(offset + (rNo - 1)) % state.players.length];
     }
+
+    /* Modal Logik für Sitzordnung & Dealer */
+    const modalSeats = document.getElementById("modalSeats");
+    const modalSeatsList = document.getElementById("modalSeatsList");
+
+    document.getElementById("btnOpenSeats").addEventListener("click", () => {
+      openSeatsModal();
+    });
+
+    function openSeatsModal() {
+      modalSeatsData = state.players.map((p, idx) => ({
+        id: p.id,
+        name: p.name,
+        color: p.color,
+        isDealer: idx === (state.dealerOffset % state.players.length)
+      }));
+      renderModalSeatsList();
+      modalSeats.classList.add("active");
+    }
+
+    function renderModalSeatsList() {
+      modalSeatsList.innerHTML = modalSeatsData.map((f, i) => `
+        <div class="setup-box" style="padding:8px 10px;">
+          <div class="setup-box-header">
+            <strong>Platz ${i + 1}</strong>
+            <div class="order-btn-group">
+              <button type="button" class="btn-mini" onclick="moveModalPlayer(${i}, -1)" ${i === 0 ? "disabled" : ""}>▲</button>
+              <button type="button" class="btn-mini" onclick="moveModalPlayer(${i}, 1)" ${i === modalSeatsData.length - 1 ? "disabled" : ""}>▼</button>
+            </div>
+          </div>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <input class="input m-name" data-idx="${i}" value="${f.name}" style="min-height:32px; padding:4px 8px;">
+            <select class="select m-col" data-idx="${i}" style="min-height:32px; padding:4px 8px; width:100px;">
+              ${COLOR_KEYS.map(k => `<option value="${k}" ${f.color === k ? "selected" : ""}>${COLORS[k].label}</option>`).join("")}
+            </select>
+          </div>
+          <label class="dealer-select-label" style="margin-top:4px;">
+            <input type="radio" name="modalDealer" class="m-dealer" value="${i}" ${f.isDealer ? "checked" : ""}>
+            <span>🃏 Start-Dealer</span>
+          </label>
+        </div>
+      `).join("");
+
+      // Listener für Namens-/Farb-Änderungen im Modal
+      modalSeatsList.querySelectorAll(".m-name").forEach(inp => {
+        inp.addEventListener("input", (e) => {
+          modalSeatsData[Number(e.target.dataset.idx)].name = e.target.value;
+        });
+      });
+      modalSeatsList.querySelectorAll(".m-col").forEach(sel => {
+        sel.addEventListener("change", (e) => {
+          modalSeatsData[Number(e.target.dataset.idx)].color = e.target.value;
+        });
+      });
+      modalSeatsList.querySelectorAll(".m-dealer").forEach(rad => {
+        rad.addEventListener("change", (e) => {
+          const selIdx = Number(e.target.value);
+          modalSeatsData.forEach((p, idx) => p.isDealer = (idx === selIdx));
+        });
+      });
+    }
+
+    window.moveModalPlayer = function(idx, direction) {
+      const target = idx + direction;
+      if (target < 0 || target >= modalSeatsData.length) return;
+      const tmp = modalSeatsData[idx];
+      modalSeatsData[idx] = modalSeatsData[target];
+      modalSeatsData[target] = tmp;
+      renderModalSeatsList();
+    };
+
+    document.getElementById("btnCancelSeats").addEventListener("click", () => {
+      modalSeats.classList.remove("active");
+    });
+
+    document.getElementById("btnSaveSeats").addEventListener("click", () => {
+      const dealerIdx = modalSeatsData.findIndex(p => p.isDealer);
+      state.dealerOffset = dealerIdx >= 0 ? dealerIdx : 0;
+
+      // Spielerliste in neuer Reihenfolge und mit aktualisierten Farben/Namen mappen
+      const reorderedPlayers = modalSeatsData.map(m => {
+        const existing = state.players.find(p => String(p.id) === String(m.id)) || {};
+        return {
+          ...existing,
+          id: m.id,
+          name: m.name.trim() || existing.name || "Spieler",
+          color: m.color
+        };
+      });
+
+      state.players = reorderedPlayers;
+      state.eveningPlayers = state.players.map(p => ({ id: p.id, name: p.name, color: p.color }));
+
+      modalSeats.classList.remove("active");
+      renderAll();
+      saveAutoStorage();
+      alert("Sitzordnung & Start-Dealer erfolgreich aktualisiert!");
+    });
 
     document.getElementById("curGameVariant").addEventListener("change", (e) => {
       if (state.rounds.length > 0) {
@@ -1252,7 +1400,7 @@
       renderAll();
       saveAutoStorage();
       setView("view-archive");
-      alert("Der Abend wurde erfolgreich archiviert! Sichere den Stand mit 💾 Speichern in OneDrive.");
+      alert("Der Abend wurde erfolgreich archiviert! Sichere den Stand mit 💾 Speichern in OneDrive.\n\nFür den nächsten Abend kannst du unter 'Runde' über ⚙️ Sitzordnung die Plätze & den Start-Dealer neu festlegen.");
     });
 
     function renderArchiveView() {
