@@ -416,6 +416,7 @@
     <div class="app-header-actions">
       <button class="btn-icon primary" id="btnInstall" style="display:none;">📲 App</button>
       <input type="file" id="filePicker" class="file-input" accept=".json">
+      <button class="btn-icon" id="btnOpenSeats" title="Sitzordnung & Start-Dealer anpassen">⚙️ Sitze</button>
       <button class="btn-icon" id="btnLoad" title="Gruppe aus OneDrive (.json) laden">📂 Laden</button>
       <button class="btn-icon primary" id="btnSave" title="In OneDrive-Ordner speichern">💾 Speichern</button>
       <button class="btn-icon" id="btnNew" title="Neue Gruppe">✨ Neu</button>
@@ -524,7 +525,6 @@
             <div style="font-size:0.8rem; color:var(--muted); margin-top:2px;" id="roundDealerLine">Dealer: -</div>
           </div>
           <div style="display:flex; gap:6px; align-items:center;">
-            <button class="btn-icon" id="btnOpenSeats" title="Sitzreihenfolge & Start-Dealer anpassen" style="min-height:30px; padding:2px 8px; font-size:0.78rem;">⚙️ Sitzordnung</button>
             <select class="select-compact" id="curGameVariant" title="Variante dieses Spiels">
               <option value="classic">Klassisch</option>
               <option value="master">Master</option>
@@ -610,7 +610,7 @@
     </section>
   </main>
 
-  <!-- Modal: Sitzordnung & Dealer für laufende/geladene Gruppe anpassen -->
+  <!-- Modal: Sitzordnung & Dealer jederzeit anpassen -->
   <div class="modal-overlay" id="modalSeats">
     <div class="modal-content">
       <h3 style="margin:0 0 6px 0; font-size:1.1rem;">⚙️ Sitzordnung & Start-Dealer</h3>
@@ -850,6 +850,9 @@
     const modalSeatsList = document.getElementById("modalSeatsList");
 
     document.getElementById("btnOpenSeats").addEventListener("click", () => {
+      if (!state.players || !state.players.length) {
+        return alert("Bitte zuerst eine Gruppe anlegen oder über 'Laden' öffnen.");
+      }
       openSeatsModal();
     });
 
@@ -887,7 +890,6 @@
         </div>
       `).join("");
 
-      // Listener für Namens-/Farb-Änderungen im Modal
       modalSeatsList.querySelectorAll(".m-name").forEach(inp => {
         inp.addEventListener("input", (e) => {
           modalSeatsData[Number(e.target.dataset.idx)].name = e.target.value;
@@ -923,7 +925,6 @@
       const dealerIdx = modalSeatsData.findIndex(p => p.isDealer);
       state.dealerOffset = dealerIdx >= 0 ? dealerIdx : 0;
 
-      // Spielerliste in neuer Reihenfolge und mit aktualisierten Farben/Namen mappen
       const reorderedPlayers = modalSeatsData.map(m => {
         const existing = state.players.find(p => String(p.id) === String(m.id)) || {};
         return {
@@ -1400,7 +1401,7 @@
       renderAll();
       saveAutoStorage();
       setView("view-archive");
-      alert("Der Abend wurde erfolgreich archiviert! Sichere den Stand mit 💾 Speichern in OneDrive.\n\nFür den nächsten Abend kannst du unter 'Runde' über ⚙️ Sitzordnung die Plätze & den Start-Dealer neu festlegen.");
+      alert("Der Abend wurde erfolgreich archiviert! Sichere den Stand mit 💾 Speichern in OneDrive.\n\nFür den nächsten Abend kannst du oben über '⚙️ Sitze' jederzeit die Sitzordnung und den Start-Dealer neu festlegen.");
     });
 
     function renderArchiveView() {
