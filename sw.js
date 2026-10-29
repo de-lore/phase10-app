@@ -1,4 +1,5 @@
-const CACHE_NAME = "phase10-app-cache-v0.1";
+const APP_VERSION = new URL(self.location.href).searchParams.get("v") || "0";
+const CACHE_NAME = `phase10-app-cache-v${APP_VERSION}`;
 const ASSETS = [
   "./",
   "./index.html",
@@ -9,7 +10,10 @@ self.addEventListener("install", (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
   );
-  self.skipWaiting();
+});
+
+self.addEventListener("message", (e) => {
+  if (e.data?.type === "SKIP_WAITING") self.skipWaiting();
 });
 
 self.addEventListener("activate", (e) => {

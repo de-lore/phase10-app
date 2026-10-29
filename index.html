@@ -374,6 +374,12 @@
     th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
     th { color: var(--muted); font-size: 0.82rem; }
     .file-input { display: none; }
+    @media (pointer: coarse) {
+      .round-player-row { grid-template-columns: minmax(95px, 1.2fr) minmax(120px, 1.8fr) minmax(76px, 0.8fr); gap: 8px; padding: 9px; margin-bottom: 9px; }
+      .round-player-row .select, .round-player-row .input { min-height: 48px; font-size: 1rem; }
+      .btn, .btn-icon, .nav-tab { min-height: 46px; }
+      .nav-tab { padding: 0 10px; }
+    }
 
     /* Modal / Dialog Styling */
     .modal-overlay {
@@ -411,7 +417,7 @@
 <body>
   <header class="app-header">
     <div class="app-title-group">
-      <div class="app-version">v0.1</div>
+      <div class="app-version" id="appVersion"></div>
       <div class="app-title" id="appTitle">Phase 10 App</div>
       <div class="app-subtitle" id="appSubtitle">OneDrive Modus</div>
     </div>
@@ -421,6 +427,8 @@
       <button class="btn-icon" id="btnOpenSeats" title="Sitzordnung & Start-Dealer anpassen">⚙️ Sitze</button>
       <button class="btn-icon" id="btnLoad" title="Gruppe aus OneDrive (.json) laden">📂 Laden</button>
       <button class="btn-icon primary" id="btnSave" title="In OneDrive-Ordner speichern">💾 Speichern</button>
+      <button class="btn-icon" id="btnBackup" title="Spielstand als JSON-Backup herunterladen">⬇ Backup</button>
+      <button class="btn-icon primary" id="btnUpdate" style="display:none;" title="Aktualisierte App laden">🔄 Update</button>
       <button class="btn-icon" id="btnNew" title="Neue Gruppe">✨ Neu</button>
       <button class="btn-icon" id="btnTheme" title="Theme wechseln">🌓</button>
     </div>
@@ -563,7 +571,7 @@
           <div>
             <h2 style="margin:0; font-size:1.1rem;">Aktuelle Abend-Rangliste</h2>
             <div style="font-size:0.8rem; color:var(--muted); margin-top:2px;">
-              Plätze aller Spiele dieses Abends. (Kasse: 0 € für Platz 1, +5 € je weiterem Platz)
+              Rangsumme aller Spiele bestimmt den Platz. Kasse: Platz 1 = 0 €, jeder weitere Platz = 5 € mehr.
             </div>
           </div>
           <button class="btn warn" id="btnArchiveEvening" style="display:none;">
@@ -628,6 +636,8 @@
   </div>
 
   <script>
+    const APP_VERSION = "0.2";
+    document.getElementById("appVersion").textContent = `v${APP_VERSION}`;
     const PHASES_CLASSIC = {
       1: "2 Drillinge", 2: "1 Drilling + 1 Viererfolge", 3: "1 Vierling + 1 Viererfolge",
       4: "1 Siebenerfolge", 5: "1 Achterfolge", 6: "1 Neunerfolge", 7: "2 Vierlinge",
@@ -1110,6 +1120,9 @@
         return alert("Genau ein Spieler muss 0 Punkte haben (Rundensieger).");
       }
 
+      const review = entries.map(e => `${e.name}: ${e.phase > 0 ? `Phase ${e.phase} geschafft` : "keine Phase"}, ${e.points} Punkte${e.points === 0 ? " (Rundensieger)" : ""}`).join("\n");
+      if (!confirm(`Bitte Eingaben prüfen:\n\n${review}\n\n${editingRoundIndex !== null ? "Korrektur speichern?" : "Runde jetzt werten?"}`)) return;
+
       if (editingRoundIndex !== null) {
         state.rounds[editingRoundIndex].entries = entries;
         rebuildStateFromRounds();
@@ -1359,7 +1372,7 @@
           <td><span class="player-chip" style="--p-col:${getPlayerColor(r.color)};">${r.name}</span></td>
           ${games.map(g => `<td>${r.gScores[g] ?? "–"}</td>`).join("")}
           <td><strong>${r.sum}</strong></td>
-          <td><strong>${idx * 5} €</strong></td>
+          <td><strong title="Platz ${idx + 1}: ${idx} × 5 €">${idx} × 5 € = ${idx * 5} €</strong></td>
         </tr>
       `).join("");
     }
@@ -1544,6 +1557,19 @@
       a.click();
     });
 
+    document.getElementById("btnBackup").addEventListener("click", () => {
+      if (!state.started && !state.archivedEvenings.length) return alert("Keine aktive Gruppe oder Historie zum Sichern vorhanden.");
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const group = (state.groupName || "Phase10").replace(/[^a-z0-9_-]/gi, "_");
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${group}_Backup_${dateStr}.json`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+
     document.getElementById("btnLoad").addEventListener("click", async () => {
       if (window.showOpenFilePicker) {
         try {
@@ -1616,8 +1642,33 @@
     let deferredInstallPrompt = null;
     const btnInstall = document.getElementById("btnInstall");
     if ("serviceWorker" in navigator) {
+      const btnUpdate = document.getElementById("btnUpdate");
+      let waitingWorker = null;
+      let reloadingForUpdate = false;
+      const showUpdate = (registration) => {
+        if (!registration.waiting) return;
+        waitingWorker = registration.waiting;
+        btnUpdate.style.display = "inline-flex";
+      };
       window.addEventListener("load", () => {
-        navigator.serviceWorker.register("./sw.js").catch(() => {});
+        navigator.serviceWorker.register(`./sw.js?v=${APP_VERSION}`).then(registration => {
+          showUpdate(registration);
+          registration.addEventListener("updatefound", () => {
+            const installing = registration.installing;
+            installing?.addEventListener("statechange", () => {
+              if (installing.state === "installed" && navigator.serviceWorker.controller) showUpdate(registration);
+            });
+          });
+          registration.update().catch(() => {});
+        }).catch(() => {});
+      });
+      btnUpdate.addEventListener("click", () => {
+        if (waitingWorker) waitingWorker.postMessage({ type: "SKIP_WAITING" });
+      });
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (reloadingForUpdate) return;
+        reloadingForUpdate = true;
+        window.location.reload();
       });
     }
     window.addEventListener("beforeinstallprompt", (e) => {
