@@ -1,5 +1,4 @@
-const APP_VERSION = new URL(self.location.href).searchParams.get("v") || "0";
-const CACHE_NAME = `phase10-app-cache-v${APP_VERSION}`;
+const CACHE_NAME = "phase10-app-cache-v0.3";
 const ASSETS = [
   "./",
   "./index.html",

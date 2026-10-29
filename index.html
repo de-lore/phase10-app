@@ -1721,7 +1721,7 @@
         btnUpdate.style.display = "inline-flex";
       };
       window.addEventListener("load", () => {
-        navigator.serviceWorker.register(`./sw.js?v=${APP_VERSION}`).then(registration => {
+        navigator.serviceWorker.register("./sw.js").then(registration => {
           showUpdate(registration);
           registration.addEventListener("updatefound", () => {
             const installing = registration.installing;
