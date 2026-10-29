@@ -5,24 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#01696f">
+  <meta name="theme-color" content="#00696b">
   <link rel="manifest" href="manifest.json">
   <title>Phase 10 App</title>
   <style>
     :root {
-      --bg: #f5f4ef;
+      color-scheme: light;
+      --bg: #f3f6f4;
       --surface: #ffffff;
-      --surface-2: #eeece4;
-      --text: #1f1e1b;
-      --muted: #6e6b63;
-      --primary: #01696f;
-      --border: #dcd7cd;
-      --border-dark: #b8b3a8;
-      --success: #2e7d32;
+      --surface-2: #f1f5f3;
+      --text: #172321;
+      --muted: #5e6d69;
+      --primary: #00696b;
+      --border: #d8e2de;
+      --border-dark: #aebdb8;
+      --focus: #087f82;
+      --success: #216b38;
       --success-bg: #e8f5e9;
-      --warning: #da7101;
+      --warning: #a84700;
       --warning-bg: #fdf2e9;
-      --gold: #d4a017;
+      --gold: #896000;
+      --shadow-card: 0 2px 12px rgba(25, 56, 49, 0.06);
+      --radius-card: 18px;
       --header-h: 68px;
       --p-gruen: #2e7d32;
       --p-gelb: #d4a017;
@@ -32,19 +36,22 @@
       --p-grau: #616161;
     }
     [data-theme="dark"] {
-      --bg: #121316;
-      --surface: #1c1d22;
-      --surface-2: #272a33;
-      --text: #f0ede6;
-      --muted: #9e9a91;
-      --primary: #4eb3bc;
-      --border: #33363f;
-      --border-dark: #474b57;
-      --success: #81c784;
+      color-scheme: dark;
+      --bg: #111a19;
+      --surface: #182321;
+      --surface-2: #202e2b;
+      --text: #eef5f2;
+      --muted: #a8b9b3;
+      --primary: #126c6e;
+      --border: #30413c;
+      --border-dark: #49615a;
+      --focus: #79d4ce;
+      --success: #83d194;
       --success-bg: #1b2e1c;
-      --warning: #fdab43;
+      --warning: #b45309;
       --warning-bg: #322112;
-      --gold: #f5c042;
+      --gold: #f0c75e;
+      --shadow-card: 0 3px 14px rgba(0, 0, 0, 0.18);
       --p-gruen: #66bb6a;
       --p-gelb: #fdd835;
       --p-blau: #64b5f6;
@@ -58,6 +65,7 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background: var(--bg);
       color: var(--text);
+      line-height: 1.45;
       display: flex;
       flex-direction: column;
       height: 100dvh;
@@ -72,7 +80,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 14px;
+      padding: 0 16px;
       flex-shrink: 0;
       z-index: 10;
     }
@@ -82,6 +90,7 @@
     .app-subtitle { font-size: 0.74rem; color: var(--muted); }
     .app-save-status { font-size: 0.66rem; color: var(--muted); line-height: 1.1; }
     .app-header-actions { display: flex; gap: 6px; align-items: center; }
+    .ui-icon { width: 18px; height: 18px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
     .more-menu-wrap { position: relative; }
     .more-menu {
       position: absolute;
@@ -96,12 +105,12 @@
       z-index: 30;
     }
     .more-menu[hidden] { display: none; }
-    .more-menu button { width: 100%; justify-content: flex-start; box-shadow: none; border-color: transparent; }
+    .more-menu button { width: 100%; min-height: 44px; justify-content: flex-start; gap: 10px; box-shadow: none; border-color: transparent; }
     .btn-icon {
       height: 34px;
-      padding: 0 9px;
-      border-radius: 9px;
-      border: 1px solid var(--border-dark);
+      padding: 0 10px;
+      border-radius: 11px;
+      border: 1px solid var(--border);
       background: var(--surface-2);
       color: var(--text);
       display: inline-flex;
@@ -110,18 +119,18 @@
       cursor: pointer;
       font-size: 0.82rem;
       font-weight: 600;
-      box-shadow: 0 2px 0 var(--border-dark);
-      transition: all 0.1s ease;
+      transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
     }
-    .btn-icon:active { transform: translateY(2px); box-shadow: none; }
-    .btn-icon.primary { background: var(--primary); color: #fff; border-color: var(--primary); box-shadow: 0 2px 0 rgba(0,0,0,0.25); }
+    .btn-icon:hover { background: color-mix(in srgb, var(--primary) 8%, var(--surface)); border-color: var(--border-dark); }
+    .btn-icon:active { transform: scale(0.98); }
+    .btn-icon.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
     /* Obere Tasten-Leiste */
     .app-top-nav {
       background: var(--surface);
       border-bottom: 1px solid var(--border);
-      padding: 6px 10px;
+      padding: 8px 12px;
       display: flex;
-      gap: 6px;
+      gap: 8px;
       flex-shrink: 0;
       overflow-x: auto;
       z-index: 9;
@@ -129,11 +138,11 @@
     }
     .nav-tab {
       flex: 1;
-      min-height: 38px;
-      min-width: 65px;
+      min-height: 42px;
+      min-width: 72px;
       background: var(--surface-2);
-      border: 1.5px solid var(--border-dark);
-      border-radius: 10px;
+      border: 1px solid transparent;
+      border-radius: 12px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -142,22 +151,19 @@
       cursor: pointer;
       font-size: 0.82rem;
       font-weight: 700;
-      box-shadow: 0 2px 0 var(--border-dark);
-      transition: all 0.12s ease;
+      transition: background-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
       user-select: none;
       white-space: nowrap;
       padding: 0 6px;
     }
-    .nav-tab:hover { background: color-mix(in srgb, var(--primary) 8%, var(--surface-2)); border-color: var(--primary); }
-    .nav-tab:active { transform: translateY(2px); box-shadow: 0 0 0 var(--border-dark); }
+    .nav-tab:hover { background: color-mix(in srgb, var(--primary) 8%, var(--surface-2)); }
+    .nav-tab:active { transform: scale(0.98); }
     .nav-tab.active {
       background: var(--primary) !important;
       color: #ffffff !important;
       border-color: var(--primary) !important;
-      box-shadow: inset 0 2px 4px rgba(0,0,0,0.25);
-      transform: translateY(1px);
     }
-    .nav-tab-icon { font-size: 1rem; line-height: 1; }
+    .nav-tab-icon { width: 18px; height: 18px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
     /* Main Container */
     .app-main {
       flex: 1;
@@ -178,19 +184,19 @@
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 12px 14px;
-      margin-bottom: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+      border-radius: var(--radius-card);
+      padding: 18px;
+      margin-bottom: 14px;
+      box-shadow: var(--shadow-card);
     }
     .input, .select {
       width: 100%;
-      min-height: 38px;
-      border-radius: 10px;
+      min-height: 44px;
+      border-radius: 12px;
       border: 1px solid var(--border);
       background: var(--bg);
       color: var(--text);
-      padding: 6px 10px;
+      padding: 8px 12px;
       font-size: 0.9rem;
     }
     .select-compact {
@@ -205,8 +211,8 @@
     }
     .btn {
       min-height: 38px;
-      border-radius: 10px;
-      border: 1.5px solid var(--border-dark);
+      border-radius: 12px;
+      border: 1px solid var(--border-dark);
       background: var(--surface);
       color: var(--text);
       padding: 8px 14px;
@@ -216,13 +222,13 @@
       align-items: center;
       justify-content: center;
       gap: 6px;
-      box-shadow: 0 2px 0 var(--border-dark);
-      transition: all 0.1s ease;
+      transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
     }
-    .btn:active { transform: translateY(2px); box-shadow: none; }
-    .btn.primary { background: var(--primary); color: #fff; border-color: var(--primary); box-shadow: 0 2px 0 rgba(0,0,0,0.25); }
-    .btn.warn { background: var(--warning); color: #fff; border-color: var(--warning); box-shadow: 0 2px 0 rgba(0,0,0,0.25); }
-    .btn.ghost { background: transparent; box-shadow: none; border-color: transparent; }
+    .btn:hover { border-color: var(--focus); }
+    .btn:active { transform: scale(0.99); }
+    .btn.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .btn.warn { background: var(--warning); color: #fff; border-color: var(--warning); }
+    .btn.ghost { background: transparent; border-color: transparent; }
     .btn.full { width: 100%; }
     .player-chip {
       display: inline-flex;
@@ -258,18 +264,18 @@
       display: grid;
       grid-template-columns: minmax(95px, 1.2fr) minmax(115px, 1.8fr) 68px;
       align-items: center;
-      gap: 6px;
-      padding: 5px 8px;
-      border-radius: 12px;
-      background: color-mix(in srgb, var(--p-col) 8%, var(--surface));
-      border: 1.5px solid color-mix(in srgb, var(--p-col) 24%, var(--border));
-      margin-bottom: 6px;
-      transition: all 0.15s ease;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: color-mix(in srgb, var(--p-col) 5%, var(--surface));
+      border: 1px solid color-mix(in srgb, var(--p-col) 18%, var(--border));
+      margin-bottom: 8px;
+      transition: background-color 0.16s ease, border-color 0.16s ease;
     }
     .round-player-row.is-winner {
       border: 2px solid var(--gold) !important;
       background: color-mix(in srgb, var(--gold) 15%, var(--surface)) !important;
-      box-shadow: 0 0 10px rgba(212, 160, 23, 0.35);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 16%, transparent);
     }
     .round-player-info {
       display: flex;
@@ -355,10 +361,10 @@
       padding-bottom: 14px;
     }
     .player-card {
-      background: color-mix(in srgb, var(--p-col) 10%, var(--surface));
-      border: 1px solid color-mix(in srgb, var(--p-col) 26%, var(--border));
-      border-radius: 16px;
-      padding: 14px;
+      background: color-mix(in srgb, var(--p-col) 6%, var(--surface));
+      border: 1px solid color-mix(in srgb, var(--p-col) 20%, var(--border));
+      border-radius: var(--radius-card);
+      padding: 18px;
       display: flex;
       flex-direction: column;
     }
@@ -369,7 +375,7 @@
       margin-top: 12px;
     }
     .p-badge-full {
-      padding: 8px 10px;
+      padding: 10px 12px;
       border-radius: 12px;
       background: var(--surface);
       border: 1px solid var(--border);
@@ -391,10 +397,31 @@
     th { color: var(--muted); font-size: 0.82rem; }
     .file-input { display: none; }
     @media (pointer: coarse) {
-      .round-player-row { grid-template-columns: minmax(95px, 1.2fr) minmax(120px, 1.8fr) minmax(76px, 0.8fr); gap: 8px; padding: 9px; margin-bottom: 9px; }
+      .round-player-row { grid-template-columns: minmax(95px, 1.2fr) minmax(120px, 1.8fr) minmax(76px, 0.8fr); gap: 8px; padding: 10px; margin-bottom: 9px; }
       .round-player-row .select, .round-player-row .input { min-height: 48px; font-size: 1rem; }
       .btn, .btn-icon, .nav-tab { min-height: 46px; }
       .nav-tab { padding: 0 10px; }
+    }
+    @media (max-width: 760px) {
+      .scores-grid-container { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); overflow: visible; }
+    }
+    @media (max-width: 560px) {
+      .app-header { height: auto; min-height: var(--header-h); padding: 8px 10px; gap: 8px; }
+      .app-title-group { min-width: 0; flex: 1 1 105px; }
+      .app-header-actions { gap: 4px; flex: 0 0 auto; }
+      .app-header-actions > .btn-icon { width: 40px; padding: 0; justify-content: center; }
+      .app-header-actions > .btn-icon .button-label { display: none; }
+      .app-save-status { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .app-main { padding: 10px; }
+      .card { padding: 14px; }
+      .round-player-row { grid-template-columns: minmax(0, 1fr) 88px; }
+      .round-player-info { grid-column: 1 / -1; }
+      .nav-tab { min-width: 56px; gap: 3px; font-size: 0.75rem; }
+      .nav-tab-icon { width: 16px; height: 16px; }
+    }
+    :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
     }
 
     /* Modal / Dialog Styling */
@@ -439,37 +466,37 @@
       <div class="app-save-status" id="appSaveStatus" aria-live="polite">Lokaler Speicher wird vorbereitet …</div>
     </div>
     <div class="app-header-actions">
-      <button class="btn-icon primary" id="btnInstall" style="display:none;">📲 App</button>
+      <button class="btn-icon primary" id="btnInstall" aria-label="App installieren" title="App installieren" style="display:none;"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="2"/><path d="M10 18.5h4M9 6h6"/></svg><span class="button-label">App</span></button>
       <input type="file" id="filePicker" class="file-input" accept=".json">
-      <button class="btn-icon" id="btnOpenSeats" title="Sitzordnung & Start-Dealer anpassen">⚙️ Sitze</button>
-      <button class="btn-icon primary" id="btnSave" title="Spielstand manuell in OneDrive speichern">☁ OneDrive</button>
-      <button class="btn-icon primary" id="btnUpdate" style="display:none;" title="Aktualisierte App laden">🔄 Update</button>
+      <button class="btn-icon" id="btnOpenSeats" aria-label="Sitzordnung und Start-Dealer anpassen" title="Sitzordnung & Start-Dealer anpassen"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1a1.8 1.8 0 0 1-2.5 2.5l-.1-.1a1.8 1.8 0 0 0-3 .9v.2a1.8 1.8 0 0 1-3.6 0v-.2a1.8 1.8 0 0 0-3-.9l-.1.1a1.8 1.8 0 0 1-2.5-2.5l.1-.1a1.8 1.8 0 0 0-.9-3h-.2a1.8 1.8 0 0 1 0-3.6h.2a1.8 1.8 0 0 0 .9-3l-.1-.1a1.8 1.8 0 0 1 2.5-2.5l.1.1a1.8 1.8 0 0 0 3-.9v-.2a1.8 1.8 0 0 1 3.6 0v.2a1.8 1.8 0 0 0 3 .9l.1-.1a1.8 1.8 0 0 1 2.5 2.5l-.1.1a1.8 1.8 0 0 0 .9 3h.2a1.8 1.8 0 0 1 0 3.6h-.2a1.8 1.8 0 0 0-.9 3Z"/></svg><span class="button-label">Sitze</span></button>
+      <button class="btn-icon primary" id="btnSave" aria-label="Spielstand manuell in OneDrive speichern" title="Spielstand manuell in OneDrive speichern"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 16.5a4 4 0 0 0-.8-7.9A6 6 0 0 0 7.7 7a4.5 4.5 0 0 0 .8 9.5H20Z"/></svg><span class="button-label">OneDrive</span></button>
+      <button class="btn-icon primary" id="btnUpdate" aria-label="App aktualisieren" style="display:none;" title="Aktualisierte App laden"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 9a7 7 0 0 1 11.6-2L20 12M4 12l2.3 5a7 7 0 0 0 11.6-2"/></svg><span class="button-label">Update</span></button>
       <div class="more-menu-wrap">
-        <button class="btn-icon" id="btnMoreMenu" title="Weitere Aktionen" aria-label="Weitere Aktionen" aria-haspopup="true" aria-expanded="false" aria-controls="moreMenu">⋮</button>
+        <button class="btn-icon" id="btnMoreMenu" title="Weitere Aktionen" aria-label="Weitere Aktionen" aria-haspopup="true" aria-expanded="false" aria-controls="moreMenu"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></button>
         <div class="more-menu" id="moreMenu" hidden>
-          <button class="btn-icon" id="btnLoad" title="Gruppe aus JSON-Datei laden">📂 Gruppe laden</button>
-          <button class="btn-icon" id="btnBackup" title="Spielstand als JSON-Backup herunterladen">⬇ Backup Export</button>
-          <button class="btn-icon" id="btnNew" title="Neue Gruppe anlegen">✨ Neue Gruppe</button>
+          <button class="btn-icon" id="btnLoad" title="Gruppe aus JSON-Datei laden"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5h6l2 2h9v10h-17z"/><path d="M12 11v5m-2-2 2 2 2-2"/></svg><span class="button-label">Gruppe laden</span></button>
+          <button class="btn-icon" id="btnBackup" title="Spielstand als JSON-Backup herunterladen"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 17v3h16v-3"/></svg><span class="button-label">Backup Export</span></button>
+          <button class="btn-icon" id="btnNew" title="Neue Gruppe anlegen"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8m-4-4h8"/></svg><span class="button-label">Neue Gruppe</span></button>
         </div>
       </div>
-      <button class="btn-icon" id="btnTheme" title="Theme wechseln">🌓</button>
+      <button class="btn-icon" id="btnTheme" title="Farbschema wechseln" aria-label="Farbschema wechseln"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6 7 7m10 10 1.4 1.4m0-12.8L17 7M7 17l-1.4 1.4"/><circle cx="12" cy="12" r="4"/></svg></button>
     </div>
   </header>
   <nav class="app-top-nav">
-    <button class="nav-tab active" data-view="view-round">
-      <span class="nav-tab-icon">🎯</span><span>Runde</span>
+    <button class="nav-tab active" data-view="view-round" aria-pressed="true">
+      <svg class="nav-tab-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg><span>Runde</span>
     </button>
-    <button class="nav-tab" data-view="view-scores">
-      <span class="nav-tab-icon">📊</span><span>Phasen</span>
+    <button class="nav-tab" data-view="view-scores" aria-pressed="false">
+      <svg class="nav-tab-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5m0 14h17M8 15l4-4 3 2 5-6"/></svg><span>Phasen</span>
     </button>
-    <button class="nav-tab" data-view="view-history">
-      <span class="nav-tab-icon">📜</span><span>Verlauf</span>
+    <button class="nav-tab" data-view="view-history" aria-pressed="false">
+      <svg class="nav-tab-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="3" cy="6" r=".5"/><circle cx="3" cy="12" r=".5"/><circle cx="3" cy="18" r=".5"/></svg><span>Verlauf</span>
     </button>
-    <button class="nav-tab" data-view="view-evening">
-      <span class="nav-tab-icon">🏆</span><span>Abend</span>
+    <button class="nav-tab" data-view="view-evening" aria-pressed="false">
+      <svg class="nav-tab-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v4a4 4 0 0 1-8 0V4Zm0 2H4v2a4 4 0 0 0 4 4m8-6h4v2a4 4 0 0 1-4 4m-4 2v4m-4 2h8m-6-6h4"/></svg><span>Abend</span>
     </button>
-    <button class="nav-tab" data-view="view-archive">
-      <span class="nav-tab-icon">🏛️</span><span>Archiv</span>
+    <button class="nav-tab" data-view="view-archive" aria-pressed="false">
+      <svg class="nav-tab-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v13H4zM3 4h18v3H3zm4 7h10m-10 4h10"/></svg><span>Archiv</span>
     </button>
   </nav>
 
@@ -565,7 +592,7 @@
               <option value="sequential">Reihenfolge</option>
               <option value="free">Beliebig</option>
             </select>
-            <button class="btn-icon" id="btnUndoRound" style="min-height:30px; padding:2px 8px; font-size:0.78rem;">↩️ Letzte</button>
+            <button class="btn-icon" id="btnUndoRound" aria-label="Letzte Runde rückgängig machen" title="Letzte Runde rückgängig machen" style="min-height:36px; padding:2px 8px; font-size:0.78rem;"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h9a7 7 0 0 1 0 14h-2"/></svg><span class="button-label">Letzte</span></button>
           </div>
         </div>
         <div id="roundPlayersList"></div>
@@ -597,7 +624,7 @@
             </div>
           </div>
           <button class="btn warn" id="btnArchiveEvening" style="display:none;">
-            📦 Abend abschließen & archivieren
+            <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v14H3zM2 3h20v4H2zm6 8h8m-8 4h8"/></svg> Abend abschließen & archivieren
           </button>
         </div>
         <div class="table-wrap">
@@ -658,7 +685,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "0.5";
+    const APP_VERSION = "0.6";
     document.getElementById("appVersion").textContent = `v${APP_VERSION}`;
     const PHASES_CLASSIC = {
       1: "2 Drillinge", 2: "1 Drilling + 1 Viererfolge", 3: "1 Vierling + 1 Viererfolge",
@@ -783,7 +810,11 @@
 
     function setView(id) {
       views.forEach(v => v.classList.toggle("active", v.id === id));
-      navTabs.forEach(t => t.classList.toggle("active", t.dataset.view === id));
+      navTabs.forEach(t => {
+        const active = t.dataset.view === id;
+        t.classList.toggle("active", active);
+        t.setAttribute("aria-pressed", String(active));
+      });
     }
 
     navTabs.forEach(t => {
