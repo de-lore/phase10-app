@@ -23,7 +23,7 @@
       --warning: #da7101;
       --warning-bg: #fdf2e9;
       --gold: #d4a017;
-      --header-h: 54px;
+      --header-h: 68px;
       --p-gruen: #2e7d32;
       --p-gelb: #d4a017;
       --p-blau: #1565c0;
@@ -80,6 +80,7 @@
     .app-version { font-size: 0.68rem; color: var(--muted); font-weight: 600; line-height: 1; }
     .app-title { font-size: 1.05rem; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
     .app-subtitle { font-size: 0.74rem; color: var(--muted); }
+    .app-save-status { font-size: 0.66rem; color: var(--muted); line-height: 1.1; }
     .app-header-actions { display: flex; gap: 6px; align-items: center; }
     .more-menu-wrap { position: relative; }
     .more-menu {
@@ -435,6 +436,7 @@
       <div class="app-version" id="appVersion"></div>
       <div class="app-title" id="appTitle">Phase 10 App</div>
       <div class="app-subtitle" id="appSubtitle">OneDrive Modus</div>
+      <div class="app-save-status" id="appSaveStatus" aria-live="polite">Lokaler Speicher wird vorbereitet …</div>
     </div>
     <div class="app-header-actions">
       <button class="btn-icon primary" id="btnInstall" style="display:none;">📲 App</button>
@@ -447,7 +449,7 @@
         <div class="more-menu" id="moreMenu" hidden>
           <button class="btn-icon" id="btnLoad" title="Gruppe aus JSON-Datei laden">📂 Gruppe laden</button>
           <button class="btn-icon" id="btnBackup" title="Spielstand als JSON-Backup herunterladen">⬇ Backup Export</button>
-          <button class="btn-icon" id="btnNew" title="Neue Gruppe anlegen">✨ Neu Gruppe erstellen</button>
+          <button class="btn-icon" id="btnNew" title="Neue Gruppe anlegen">✨ Neue Gruppe</button>
         </div>
       </div>
       <button class="btn-icon" id="btnTheme" title="Theme wechseln">🌓</button>
@@ -656,7 +658,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "0.4";
+    const APP_VERSION = "0.5";
     document.getElementById("appVersion").textContent = `v${APP_VERSION}`;
     const PHASES_CLASSIC = {
       1: "2 Drillinge", 2: "1 Drilling + 1 Viererfolge", 3: "1 Vierling + 1 Viererfolge",
@@ -713,6 +715,11 @@
       return COLORS[key]?.css || COLORS.gruen.css;
     }
 
+    function setSaveStatus(message) {
+      const status = document.getElementById("appSaveStatus");
+      if (status) status.textContent = message;
+    }
+
     function saveAutoStorage() {
       try {
         const phaseInputs = [...document.querySelectorAll(".r-phase")];
@@ -729,7 +736,10 @@
         }
         const storedState = { ...state, _roundDraft: roundDraft };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(storedState));
-      } catch (e) {}
+        setSaveStatus("Lokal gespeichert · OneDrive manuell");
+      } catch (e) {
+        setSaveStatus("Lokale Speicherung fehlgeschlagen");
+      }
     }
 
     function loadAutoStorage() {
@@ -1587,6 +1597,7 @@
           const writable = await fileHandle.createWritable();
           await writable.write(dataStr);
           await writable.close();
+          setSaveStatus("In OneDrive gespeichert");
           alert("Erfolgreich direkt im OneDrive-Ordner gespeichert!");
           return;
         } catch (err) {
@@ -1598,20 +1609,58 @@
       a.href = URL.createObjectURL(blob);
       a.download = `${(state.groupName || "Phase10")}.json`;
       a.click();
+      setSaveStatus("Datei heruntergeladen · OneDrive ggf. manuell");
     });
 
     document.getElementById("btnBackup").addEventListener("click", () => {
       if (!state.started && !state.archivedEvenings.length) return alert("Keine aktive Gruppe oder Historie zum Sichern vorhanden.");
       const dateStr = new Date().toISOString().slice(0, 10);
       const group = (state.groupName || "Phase10").replace(/[^a-z0-9_-]/gi, "_");
-      const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
+      downloadJSON({ ...state, _roundDraft: roundDraft }, `${group}_Backup_${dateStr}.json`);
+    });
+
+    function downloadJSON(data, filename) {
+      const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${group}_Backup_${dateStr}.json`;
+      a.download = filename;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-    });
+    }
+
+    function stableStringify(value) {
+      if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+      if (value && typeof value === "object") {
+        return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(",")}}`;
+      }
+      return JSON.stringify(value);
+    }
+
+    function comparableGameData(value) {
+      const data = Object.assign(defaultState(), value || {});
+      return {
+        groupName: data.groupName,
+        playerCount: data.playerCount,
+        gameVariant: data.gameVariant,
+        phaseMode: data.phaseMode,
+        started: data.started,
+        gameFinished: data.gameFinished,
+        gameNumber: data.gameNumber,
+        dealerOffset: data.dealerOffset,
+        players: data.players,
+        eveningPlayers: data.eveningPlayers,
+        rounds: data.rounds,
+        eveningSeries: data.eveningSeries,
+        archivedEvenings: data.archivedEvenings,
+        roundDraft: value?._roundDraft || null
+      };
+    }
+
+    function describeGameData(data) {
+      const game = data.gameNumber || 1;
+      const round = (data.rounds || []).length + 1;
+      return `${data.groupName || "Unbenannte Gruppe"} · Spiel ${game}, Runde ${round}`;
+    }
 
     document.getElementById("btnLoad").addEventListener("click", async () => {
       if (window.showOpenFilePicker) {
@@ -1619,10 +1668,9 @@
           const [handle] = await window.showOpenFilePicker({
             types: [{ description: "JSON Datei", accept: { "application/json": [".json"] } }]
           });
-          fileHandle = handle;
-          const file = await fileHandle.getFile();
+          const file = await handle.getFile();
           const text = await file.text();
-          loadStateFromJSON(text);
+          if (loadStateFromJSON(text)) fileHandle = handle;
           return;
         } catch (err) {
           if (err.name === "AbortError") return;
@@ -1644,7 +1692,20 @@
       try {
         const loaded = JSON.parse(jsonText);
         if (!loaded || typeof loaded !== "object") throw new Error();
-        roundDraft = null;
+        const localRaw = localStorage.getItem(STORAGE_KEY);
+        const localState = localRaw ? JSON.parse(localRaw) : null;
+        const hasLocalGame = localState && (localState.started || localState.players?.length || localState.archivedEvenings?.length);
+        const hasDifference = hasLocalGame && stableStringify(comparableGameData(localState)) !== stableStringify(comparableGameData(loaded));
+        if (hasDifference) {
+          const message = `Der lokale Spielstand weicht von der Datei ab.\n\nLokal: ${describeGameData(localState)}\nDatei: ${describeGameData(loaded)}\n\nOK erstellt zuerst ein Backup des lokalen Stands. Abbrechen lässt alles unverändert.`;
+          if (!confirm(message)) return false;
+          const group = (localState.groupName || "Phase10").replace(/[^a-z0-9_-]/gi, "_");
+          const dateStr = new Date().toISOString().slice(0, 10);
+          downloadJSON(localState, `${group}_VorImport_${dateStr}.json`);
+          if (!confirm("Das Backup wurde zum Download bereitgestellt. Soll jetzt die ausgewählte Datei geladen und der lokale Spielstand ersetzt werden?")) return false;
+        }
+        roundDraft = loaded._roundDraft || null;
+        delete loaded._roundDraft;
         state = Object.assign(defaultState(), loaded);
         if (!Array.isArray(state.archivedEvenings)) state.archivedEvenings = [];
         state.dealerOffset = Number(state.dealerOffset) || 0;
@@ -1655,9 +1716,12 @@
         renderAll();
         saveAutoStorage();
         setView(state.started ? "view-scores" : "view-archive");
+        setSaveStatus("Lokal gespeichert · Datei geladen");
         alert(`Gruppe „${state.groupName || 'Phase 10'}“ geladen!`);
+        return true;
       } catch (e) {
         alert("Ungültige Phase-10-Datei.");
+        return false;
       }
     }
 
@@ -1715,6 +1779,7 @@
       const btnUpdate = document.getElementById("btnUpdate");
       let waitingWorker = null;
       let reloadingForUpdate = false;
+      const hadControllerAtStart = Boolean(navigator.serviceWorker.controller);
       const showUpdate = (registration) => {
         if (!registration.waiting) return;
         waitingWorker = registration.waiting;
@@ -1738,6 +1803,9 @@
       navigator.serviceWorker.addEventListener("controllerchange", () => {
         if (reloadingForUpdate) return;
         reloadingForUpdate = true;
+        if (hadControllerAtStart) {
+          try { sessionStorage.setItem("phase10_update_notice", APP_VERSION); } catch (e) {}
+        }
         window.location.reload();
       });
     }
@@ -1765,9 +1833,19 @@
       updateHeader();
       renderAll();
       setView(state.started ? "view-round" : "view-setup");
+      setSaveStatus("Lokal geladen · OneDrive manuell");
     } else {
       renderSetupPlayerFields();
+      setSaveStatus("Noch kein lokaler Spielstand");
     }
+    try {
+      const updatedTo = sessionStorage.getItem("phase10_update_notice");
+      if (updatedTo) {
+        sessionStorage.removeItem("phase10_update_notice");
+        setSaveStatus(`App auf v${updatedTo} aktualisiert`);
+        setTimeout(() => setSaveStatus("Lokal gespeichert · OneDrive manuell"), 5000);
+      }
+    } catch (e) {}
   </script>
 </body>
 </html>
