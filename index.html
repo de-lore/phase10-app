@@ -81,6 +81,21 @@
     .app-title { font-size: 1.05rem; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
     .app-subtitle { font-size: 0.74rem; color: var(--muted); }
     .app-header-actions { display: flex; gap: 6px; align-items: center; }
+    .more-menu-wrap { position: relative; }
+    .more-menu {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      min-width: 180px;
+      padding: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border-dark);
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+      z-index: 30;
+    }
+    .more-menu[hidden] { display: none; }
+    .more-menu button { width: 100%; justify-content: flex-start; box-shadow: none; border-color: transparent; }
     .btn-icon {
       height: 34px;
       padding: 0 9px;
@@ -425,11 +440,16 @@
       <button class="btn-icon primary" id="btnInstall" style="display:none;">📲 App</button>
       <input type="file" id="filePicker" class="file-input" accept=".json">
       <button class="btn-icon" id="btnOpenSeats" title="Sitzordnung & Start-Dealer anpassen">⚙️ Sitze</button>
-      <button class="btn-icon" id="btnLoad" title="Gruppe aus OneDrive (.json) laden">📂 Laden</button>
-      <button class="btn-icon primary" id="btnSave" title="In OneDrive-Ordner speichern">💾 Speichern</button>
-      <button class="btn-icon" id="btnBackup" title="Spielstand als JSON-Backup herunterladen">⬇ Backup</button>
+      <button class="btn-icon primary" id="btnSave" title="Spielstand manuell in OneDrive speichern">☁ OneDrive</button>
       <button class="btn-icon primary" id="btnUpdate" style="display:none;" title="Aktualisierte App laden">🔄 Update</button>
-      <button class="btn-icon" id="btnNew" title="Neue Gruppe">✨ Neu</button>
+      <div class="more-menu-wrap">
+        <button class="btn-icon" id="btnMoreMenu" title="Weitere Aktionen" aria-label="Weitere Aktionen" aria-haspopup="true" aria-expanded="false" aria-controls="moreMenu">⋮</button>
+        <div class="more-menu" id="moreMenu" hidden>
+          <button class="btn-icon" id="btnLoad" title="Gruppe aus JSON-Datei laden">📂 Laden</button>
+          <button class="btn-icon" id="btnBackup" title="Spielstand als JSON-Backup herunterladen">⬇ Backup</button>
+          <button class="btn-icon" id="btnNew" title="Neue Gruppe anlegen">✨ Gruppe neu</button>
+        </div>
+      </div>
       <button class="btn-icon" id="btnTheme" title="Theme wechseln">🌓</button>
     </div>
   </header>
@@ -636,7 +656,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "0.2";
+    const APP_VERSION = "0.3";
     document.getElementById("appVersion").textContent = `v${APP_VERSION}`;
     const PHASES_CLASSIC = {
       1: "2 Drillinge", 2: "1 Drilling + 1 Viererfolge", 3: "1 Vierling + 1 Viererfolge",
@@ -677,6 +697,7 @@
     });
 
     let state = defaultState();
+    let roundDraft = null;
     let fileHandle = null;
     let PHASES = PHASES_CLASSIC;
     let editingRoundIndex = null;
@@ -694,7 +715,20 @@
 
     function saveAutoStorage() {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        const phaseInputs = [...document.querySelectorAll(".r-phase")];
+        const pointInputs = [...document.querySelectorAll(".r-points")];
+        if (state.started && editingRoundIndex === null && phaseInputs.length) {
+          const entries = state.players.map(p => {
+            const phase = phaseInputs.find(el => String(el.dataset.id) === String(p.id));
+            const points = pointInputs.find(el => String(el.dataset.id) === String(p.id));
+            return { playerId: p.id, phase: Number(phase?.value) || 0, points: points?.value ?? "" };
+          });
+          roundDraft = entries.some(e => e.phase > 0 || e.points !== "")
+            ? { game: state.gameNumber, round: state.rounds.length + 1, entries }
+            : null;
+        }
+        const storedState = { ...state, _roundDraft: roundDraft };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(storedState));
       } catch (e) {}
     }
 
@@ -704,6 +738,8 @@
         if (!raw) return false;
         const loaded = JSON.parse(raw);
         if (!loaded || typeof loaded !== "object") return false;
+        roundDraft = loaded._roundDraft || null;
+        delete loaded._roundDraft;
         state = Object.assign(defaultState(), loaded);
         if (!Array.isArray(state.archivedEvenings)) state.archivedEvenings = [];
         state.dealerOffset = Number(state.dealerOffset) || 0;
@@ -1031,8 +1067,11 @@
         const existingEntry = isEditing && targetRound
           ? targetRound.entries.find(e => String(e.playerId) === String(p.id) || e.name === p.name)
           : null;
-        const currentSelectedPhase = existingEntry ? Number(existingEntry.phase) : 0;
-        const currentPoints = existingEntry !== null && existingEntry.points !== undefined ? existingEntry.points : "";
+        const savedDraftEntry = !isEditing && roundDraft?.game === state.gameNumber && roundDraft?.round === state.rounds.length + 1
+          ? roundDraft.entries.find(e => String(e.playerId) === String(p.id))
+          : null;
+        const currentSelectedPhase = existingEntry ? Number(existingEntry.phase) : Number(savedDraftEntry?.phase) || 0;
+        const currentPoints = existingEntry !== null && existingEntry.points !== undefined ? existingEntry.points : (savedDraftEntry?.points ?? "");
 
         let opts = `<option value="0" ${currentSelectedPhase === 0 ? "selected" : ""}>– Keine Phase –</option>`;
         if (state.phaseMode === "sequential") {
@@ -1084,8 +1123,10 @@
             if (row) row.classList.remove("is-winner");
             if (sub) sub.textContent = `Vorher: P${pBefore.currentPhase} • ${pBefore.totalPoints}P`;
           }
+          saveAutoStorage();
         });
       });
+      document.querySelectorAll(".r-phase").forEach(select => select.addEventListener("change", saveAutoStorage));
     }
 
     document.getElementById("btnCancelEdit").addEventListener("click", () => {
@@ -1133,6 +1174,8 @@
         alert("Runde erfolgreich korrigiert! Alle Punkte wurden neu berechnet.");
         return;
       }
+
+      roundDraft = null;
 
       const snapBefore = JSON.parse(JSON.stringify(state.players));
 
@@ -1601,6 +1644,7 @@
       try {
         const loaded = JSON.parse(jsonText);
         if (!loaded || typeof loaded !== "object") throw new Error();
+        roundDraft = null;
         state = Object.assign(defaultState(), loaded);
         if (!Array.isArray(state.archivedEvenings)) state.archivedEvenings = [];
         state.dealerOffset = Number(state.dealerOffset) || 0;
@@ -1620,6 +1664,7 @@
     document.getElementById("btnNew").addEventListener("click", () => {
       if (confirm("Neue Gruppe anlegen?")) {
         fileHandle = null;
+        roundDraft = null;
         state = defaultState();
         editingRoundIndex = null;
         setupFormData = [];
@@ -1636,6 +1681,31 @@
       document.documentElement.dataset.theme = next;
       state.theme = next;
       saveAutoStorage();
+    });
+
+    const btnMoreMenu = document.getElementById("btnMoreMenu");
+    const moreMenu = document.getElementById("moreMenu");
+    const closeMoreMenu = () => {
+      moreMenu.hidden = true;
+      btnMoreMenu.setAttribute("aria-expanded", "false");
+    };
+    btnMoreMenu.addEventListener("click", () => {
+      const opening = moreMenu.hidden;
+      moreMenu.hidden = !opening;
+      btnMoreMenu.setAttribute("aria-expanded", String(opening));
+    });
+    moreMenu.addEventListener("click", (e) => {
+      if (e.target.closest("button")) closeMoreMenu();
+    });
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest(".more-menu-wrap")) closeMoreMenu();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeMoreMenu();
+    });
+    window.addEventListener("pagehide", saveAutoStorage);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") saveAutoStorage();
     });
 
     // PWA Install Prompt
