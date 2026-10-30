@@ -686,6 +686,7 @@
         <div id="roundPlayersList"></div>
         <div style="margin-top:10px;">
           <button class="btn primary full" id="btnSaveRound">Runde werten</button>
+          <div class="keyboard-hint" style="margin-top:6px; text-align:center; color:var(--muted); font-size:0.75rem;">Tastatur: <kbd>Alt</kbd>+<kbd>P</kbd> Phasen · <kbd>Alt</kbd>+<kbd>R</kbd> Runde · <kbd>Tab</kbd> nächstes Feld · <kbd>Strg</kbd>+<kbd>Enter</kbd> Runde werten</div>
         </div>
       </div>
     </section>
@@ -785,7 +786,7 @@
   </dialog>
 
   <script>
-    const APP_VERSION = "1.3";
+    const APP_VERSION = "1.4";
     document.getElementById("appVersion").textContent = `v${APP_VERSION}`;
     const appDialog = document.getElementById("appDialog");
     const appDialogTitle = document.getElementById("appDialogTitle");
@@ -2017,6 +2018,21 @@
     });
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") closeMoreMenu();
+      if (e.repeat || document.getElementById("appDialog")?.open) return;
+      const activeView = document.querySelector(".view.active")?.id;
+      if (e.altKey && !e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === "p" && state.started) {
+        e.preventDefault();
+        setView("view-scores");
+      } else if (e.altKey && !e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === "r" && state.started) {
+        e.preventDefault();
+        setView("view-round");
+      } else if (e.key === "Enter" && e.ctrlKey && activeView === "view-round") {
+        const saveButton = document.getElementById("btnSaveRound");
+        if (saveButton && saveButton.offsetParent !== null) {
+          e.preventDefault();
+          saveButton.click();
+        }
+      }
     });
     window.addEventListener("pagehide", saveAutoStorage);
     document.addEventListener("visibilitychange", () => {
