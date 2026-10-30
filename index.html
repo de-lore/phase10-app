@@ -394,6 +394,12 @@
     .p-badge-full.done .p-tag { color: var(--success); }
     .p-desc { font-size: 0.95rem; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
     .p-badge-full.done .p-desc { color: var(--success); font-weight: 800; }
+    #view-scores .player-card { padding: 12px; }
+    #view-scores .phase-full-list { gap: 3px; margin-top: 8px; }
+    #view-scores .p-badge-full { min-height: 31px; padding: 5px 8px; gap: 6px; border-radius: 9px; line-height: 1.18; }
+    #view-scores .p-badge-full .check-mark { font-size: 0.9rem; }
+    #view-scores .p-tag { min-width: 27px; font-size: 0.72rem; }
+    #view-scores .p-desc { font-size: 0.84rem; line-height: 1.2; }
     .table-wrap { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
@@ -422,6 +428,13 @@
       .round-player-info { grid-column: 1 / -1; }
       .nav-tab { min-width: 56px; gap: 3px; font-size: 0.75rem; }
       .nav-tab-icon { width: 16px; height: 16px; }
+    }
+    @media (max-height: 720px) {
+      #view-scores .card { padding: 10px; }
+      #view-scores .player-card { padding: 9px; }
+      #view-scores .phase-full-list { gap: 2px; margin-top: 6px; }
+      #view-scores .p-badge-full { min-height: 27px; padding: 3px 6px; }
+      #view-scores .p-desc { font-size: 0.8rem; }
     }
     :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
     @media (prefers-reduced-motion: reduce) {
@@ -689,7 +702,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "0.7";
+    const APP_VERSION = "0.8";
     document.getElementById("appVersion").textContent = `v${APP_VERSION}`;
     const PHASES_CLASSIC = {
       1: "2 Drillinge", 2: "1 Drilling + 1 Viererfolge", 3: "1 Vierling + 1 Viererfolge",
@@ -839,11 +852,17 @@
         t.classList.toggle("active", active);
         t.setAttribute("aria-pressed", String(active));
       });
-      if (id !== "view-round") setHeaderCollapsed(false);
+      setHeaderCollapsed(id === "view-scores");
     }
 
     appMain.addEventListener("scroll", () => {
       const currentTop = appMain.scrollTop;
+      const phasesActive = document.getElementById("view-scores").classList.contains("active");
+      if (phasesActive) {
+        setHeaderCollapsed(true);
+        lastMainScrollTop = currentTop;
+        return;
+      }
       const playing = state.started && document.getElementById("view-round").classList.contains("active");
       if (!playing || currentTop <= 8) {
         setHeaderCollapsed(false);
