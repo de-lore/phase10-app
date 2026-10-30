@@ -95,7 +95,11 @@
     .app-version { position: absolute; right: 0; bottom: 0; padding: 2px 4px; border-radius: 6px 0 8px 0; color: rgba(255, 255, 255, 0.78); background: rgba(0, 0, 0, 0.2); backdrop-filter: blur(2px); font-size: 0.56rem; font-weight: 750; line-height: 1; }
     .app-title-group { min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; overflow: hidden; padding-inline-start: 2px; }
     .app-title { font-size: 1.18rem; font-weight: 800; line-height: 1.2; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
-    .app-save-status { font-size: 0.74rem; color: var(--muted); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .app-save-status { min-width: 0; font-size: 0.74rem; color: var(--muted); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .app-save-status::before { content: ""; display: inline-block; width: 7px; height: 7px; margin: 0 5px 1px 0; border-radius: 50%; background: var(--warning); }
+    .app-save-status[data-save-state="cloud"]::before { background: var(--success); }
+    .app-save-status[data-save-state="error"]::before { background: var(--warning); }
+    .app-save-status[data-save-state="backup"]::before { background: var(--primary); }
     .app-header-actions { display: flex; gap: 6px; align-items: center; }
     .ui-icon { width: 18px; height: 18px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
     .more-menu-wrap { position: relative; }
@@ -465,6 +469,23 @@
       .nav-tab-icon { width: 16px; height: 16px; }
       #scoresGrid[data-player-count="4"] { grid-template-columns: minmax(0, 1fr); }
     }
+    @media (pointer: coarse) and (orientation: portrait) and (min-width: 561px) {
+      .app-header { padding-inline: 12px; gap: 10px; }
+      .app-title { font-size: 1.12rem; }
+      .app-header-actions { gap: 5px; }
+      #view-round { max-width: 100%; }
+    }
+    @media (pointer: coarse) and (orientation: landscape) {
+      :root { --header-h: 58px; }
+      .app-header { min-height: var(--header-h); padding-inline: 10px; gap: 10px; }
+      .app-icon-wrap { width: 50px; height: 50px; }
+      .app-brand-label { font-size: 2rem; }
+      .app-title { font-size: 1.08rem; }
+      .app-top-nav { padding-block: 4px; }
+      .app-main { padding: 7px 12px; }
+      #view-round .card { padding: 11px; }
+      .round-player-row { padding: 7px 9px; margin-bottom: 6px; }
+    }
     @media (max-height: 720px) {
       #view-scores .card { padding: 10px; }
       #view-scores .player-card { padding: 9px; }
@@ -798,7 +819,7 @@
   </dialog>
 
   <script>
-    const APP_VERSION = "1.8";
+    const APP_VERSION = "1.9";
     document.getElementById("appVersion").textContent = `v${APP_VERSION}`;
     const appDialog = document.getElementById("appDialog");
     const appDialogTitle = document.getElementById("appDialogTitle");
@@ -911,9 +932,12 @@
       return COLORS[key]?.css || COLORS.gruen.css;
     }
 
-    function setSaveStatus(message) {
+    function setSaveStatus(message, saveState = "local") {
       const status = document.getElementById("appSaveStatus");
-      if (status) status.textContent = message;
+      if (status) {
+        status.textContent = message;
+        status.dataset.saveState = saveState;
+      }
     }
 
     function saveAutoStorage() {
@@ -932,9 +956,9 @@
         }
         const storedState = { ...state, _roundDraft: roundDraft };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(storedState));
-        setSaveStatus("Lokal gespeichert · OneDrive manuell");
+        setSaveStatus("Lokal gespeichert · OneDrive separat", "local");
       } catch (e) {
-        setSaveStatus("Lokale Speicherung fehlgeschlagen");
+        setSaveStatus("Lokale Speicherung fehlgeschlagen", "error");
       }
     }
 
@@ -1732,13 +1756,14 @@
 
     document.getElementById("btnArchiveEvening").addEventListener("click", async () => {
       if (!state.eveningSeries.length) return showMessage("An diesem Abend wurde noch kein Spiel beendet.", { title: "Noch keine Ergebnisse", tone: "warning" });
+      const rows = getEveningRankingRows();
+      const preview = rows.map(r => "Platz " + formatPlace(r.placement) + " · " + r.name + " · Rangsumme " + r.sum + " · Kasse " + formatEuro((r.placement - 1) * 5) + " €").join("\n");
       const confirmArchive = await showConfirm(
-        "Die Ergebnisse werden in die ewige Tabelle übernommen. Das aktuelle Spielbrett wird anschließend für den nächsten Abend zurückgesetzt.",
-        { title: "Abend archivieren?", confirmLabel: "Abend abschließen", destructive: true }
+        "Vorschau der Abendwertung:\n\n" + preview + "\n\nDie Ergebnisse werden archiviert und das aktuelle Spielbrett für den nächsten Abend zurückgesetzt.",
+        { title: "Abendwertung prüfen", confirmLabel: "Abend archivieren", destructive: true }
       );
       if (!confirmArchive) return;
 
-      const rows = getEveningRankingRows();
       const now = new Date();
       const dateStr = now.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
       const timeStr = now.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
@@ -1834,9 +1859,11 @@
                 <strong>🗓️ Abend vom ${dateStr}</strong>
                 <div style="display:flex; gap:8px; align-items:center;">
                   <span style="font-size:0.8rem; color:var(--muted);">${eve.gameCount || 1} Spiel${eve.gameCount === 1 ? '' : 'e'}</span>
+                  <button class="btn ghost" onclick="toggleArchivedEveningEdit(${idx})" style="min-height:26px; padding:2px 6px; font-size:0.75rem;">Wertung ändern</button>
                   <button class="btn ghost" onclick="deleteArchivedEvening(${idx})" style="min-height:26px; padding:2px 6px; font-size:0.75rem; color:var(--warning);">Löschen</button>
                 </div>
               </div>
+              <div id="archiveEdit-${idx}" hidden></div>
               <div class="table-wrap">
                 <table>
                   <thead>
@@ -1852,7 +1879,7 @@
                       <tr>
                         <td>${formatPlace(r.place || r.placement || 1)}</td>
                         <td><span class="player-chip" style="--p-col:${getPlayerColor(r.color)}; padding:2px 8px; font-size:0.75rem;">${r.name}</span></td>
-                        <td>${r.sumRank || r.totalRank || '–'}</td>
+                        <td>${r.sumRank ?? r.totalRank ?? '–'}</td>
                         <td><strong>${formatEuro(r.cash !== undefined ? r.cash : ((r.place || 1) - 1) * 5)} €</strong></td>
                       </tr>
                     `).join("")}
@@ -1864,6 +1891,54 @@
         }).join("");
       }
     }
+
+    window.toggleArchivedEveningEdit = function(index) {
+      const panel = document.getElementById(`archiveEdit-${index}`);
+      const eve = state.archivedEvenings[index];
+      if (!panel || !eve) return;
+      if (!panel.hidden) {
+        panel.hidden = true;
+        return;
+      }
+      const ranking = eve.ranking || eve.players || [];
+      panel.innerHTML = '<div style="font-size:0.8rem; color:var(--muted); margin-bottom:8px;">Rangsumme anpassen; geteilte Plätze und Kassenbeträge werden automatisch neu berechnet.</div>' +
+        ranking.map((r, rowIndex) => {
+        const sumRank = r.sumRank ?? r.totalRank ?? 0;
+        return '<label style="display:grid; grid-template-columns:minmax(100px,1fr) 120px; gap:8px; align-items:center; margin:6px 0;">' +
+          '<span>' + r.name + '</span><input class="input" type="number" min="0" step="0.5" data-archive-sum="' + rowIndex + '" value="' + Number(sumRank) + '" aria-label="Rangsumme für ' + r.name + '"></label>';
+        }).join('') +
+        '<div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">' +
+          '<button class="btn ghost" onclick="toggleArchivedEveningEdit(' + index + ')">Abbrechen</button>' +
+          '<button class="btn primary" onclick="saveArchivedEveningEdit(' + index + ')">Wertung speichern</button>' +
+        '</div>';
+      panel.style.cssText = 'padding:10px; margin:0 0 10px; border:1px solid var(--border); border-radius:12px; background:var(--surface);';
+      panel.hidden = false;
+    };
+
+    window.saveArchivedEveningEdit = function(index) {
+      const eve = state.archivedEvenings[index];
+      const panel = document.getElementById(`archiveEdit-${index}`);
+      if (!eve || !panel) return;
+      const ranking = eve.ranking || eve.players || [];
+      const inputs = [...panel.querySelectorAll('[data-archive-sum]')];
+      const updated = ranking.map((r, rowIndex) => {
+        const input = inputs.find(el => Number(el.dataset.archiveSum) === rowIndex);
+        return { ...r, sumRank: Number(input?.value) };
+      });
+      if (updated.some(r => !Number.isFinite(r.sumRank) || r.sumRank < 0)) {
+        showMessage('Bitte gib für alle Spieler eine gültige Rangsumme ab 0 ein.', { title: 'Rangsumme prüfen', tone: 'warning' });
+        return;
+      }
+      updated.sort((a, b) => a.sumRank - b.sumRank);
+      eve.ranking = assignAveragePlacements(updated, (a, b) => a.sumRank === b.sumRank).map(r => ({
+        ...r,
+        place: r.placement,
+        cash: (r.placement - 1) * 5
+      }));
+      saveAutoStorage();
+      renderAll();
+      showMessage('Die Abendwertung und die Kassenbeträge wurden neu berechnet.', { title: 'Wertung gespeichert', tone: 'success', mark: '✓' });
+    };
 
     window.deleteArchivedEvening = async function(index) {
       if (!await showConfirm("Dieser Abend wird aus der Historie entfernt.", { title: "Archivierten Abend löschen?", confirmLabel: "Abend löschen", destructive: true })) return;
@@ -1898,7 +1973,7 @@
           const writable = await fileHandle.createWritable();
           await writable.write(dataStr);
           await writable.close();
-          setSaveStatus("In OneDrive gespeichert");
+          setSaveStatus("Lokal + OneDrive gespeichert", "cloud");
           showMessage("Der Spielstand wurde direkt in OneDrive gespeichert.", { title: "OneDrive gespeichert", tone: "success", mark: "✓" });
           return;
         } catch (err) {
@@ -1910,7 +1985,7 @@
       a.href = URL.createObjectURL(blob);
       a.download = `${(state.groupName || "Phase10")}.json`;
       a.click();
-      setSaveStatus("Datei heruntergeladen · OneDrive ggf. manuell");
+      setSaveStatus("Lokal gespeichert · Backup heruntergeladen", "backup");
     });
 
     document.getElementById("btnBackup").addEventListener("click", () => {
@@ -1918,6 +1993,7 @@
       const dateStr = new Date().toISOString().slice(0, 10);
       const group = (state.groupName || "Phase10").replace(/[^a-z0-9_-]/gi, "_");
       downloadJSON({ ...state, _roundDraft: roundDraft }, `${group}_Backup_${dateStr}.json`);
+      setSaveStatus("Lokal gespeichert · Backup heruntergeladen", "backup");
     });
 
     function downloadJSON(data, filename) {
@@ -2017,7 +2093,7 @@
         renderAll();
         saveAutoStorage();
         setView(state.started ? "view-scores" : "view-archive");
-        setSaveStatus("Lokal gespeichert · Datei geladen");
+        setSaveStatus("Lokal gespeichert · OneDrive separat", "local");
         showMessage(`Die Gruppe „${state.groupName || "Phase 10"}“ wurde geladen.`, { title: "Gruppe geladen", tone: "success", mark: "✓" });
         return true;
       } catch (e) {
@@ -2027,7 +2103,16 @@
     }
 
     document.getElementById("btnNew").addEventListener("click", async () => {
-      if (await showConfirm("Der aktuelle Stand wird lokal durch die neue Gruppe ersetzt. Erstelle vorher ein Backup, wenn du ihn behalten möchtest.", { title: "Neue Gruppe erstellen?", confirmLabel: "Neue Gruppe", destructive: true })) {
+      const hasCurrentGroup = state.started || state.players.length || state.archivedEvenings.length;
+      const message = hasCurrentGroup
+        ? "Vor dem Wechsel wird ein Backup der aktuellen Gruppe heruntergeladen. Danach wird der lokale Spielstand durch die neue Gruppe ersetzt."
+        : "Eine neue Gruppe wird geöffnet.";
+      if (await showConfirm(message, { title: "Neue Gruppe erstellen?", confirmLabel: "Neue Gruppe", destructive: true })) {
+        if (hasCurrentGroup) {
+          const group = (state.groupName || "Phase10").replace(/[^a-z0-9_-]/gi, "_");
+          const dateStr = new Date().toISOString().slice(0, 10);
+          downloadJSON({ ...state, _roundDraft: roundDraft }, group + "_VorNeueGruppe_" + dateStr + ".json");
+        }
         fileHandle = null;
         roundDraft = null;
         state = defaultState();
@@ -2149,7 +2234,7 @@
       updateHeader();
       renderAll();
       setView(state.started ? "view-round" : "view-setup");
-      setSaveStatus("Lokal geladen · OneDrive manuell");
+      setSaveStatus("Lokal geladen · OneDrive separat", "local");
     } else {
       renderSetupPlayerFields();
       setSaveStatus("Noch kein lokaler Spielstand");
@@ -2158,8 +2243,8 @@
       const updatedTo = sessionStorage.getItem("phase10_update_notice");
       if (updatedTo) {
         sessionStorage.removeItem("phase10_update_notice");
-        setSaveStatus(`App auf v${updatedTo} aktualisiert`);
-        setTimeout(() => setSaveStatus("Lokal gespeichert · OneDrive manuell"), 5000);
+        setSaveStatus(`App auf v${updatedTo} aktualisiert`, "cloud");
+        setTimeout(() => setSaveStatus("Lokal gespeichert · OneDrive separat", "local"), 5000);
       }
     } catch (e) {}
   </script>
