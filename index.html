@@ -88,11 +88,14 @@
       transition: height 220ms ease, min-height 220ms ease, padding 220ms ease, opacity 180ms ease, border-color 180ms ease;
     }
     body.header-collapsed .app-header { height: 0; min-height: 0; padding-top: 0; padding-bottom: 0; border-bottom-width: 0; opacity: 0; overflow: hidden; pointer-events: none; }
-    .app-title-group { display: flex; flex-direction: column; overflow: hidden; }
-    .app-version { font-size: 0.68rem; color: var(--muted); font-weight: 600; line-height: 1; }
-    .app-title { font-size: 1.05rem; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
-    .app-subtitle { font-size: 0.74rem; color: var(--muted); }
-    .app-save-status { font-size: 0.66rem; color: var(--muted); line-height: 1.1; }
+    .app-brand { height: 100%; min-width: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; flex: 0 0 auto; }
+    .app-brand-label { font-size: 0.72rem; font-weight: 800; line-height: 1; color: var(--primary); letter-spacing: 0.01em; }
+    .app-icon-wrap { position: relative; width: 42px; height: 42px; flex: 0 0 auto; }
+    .app-icon-wrap img { display: block; width: 100%; height: 100%; object-fit: contain; }
+    .app-version { position: absolute; right: 0; bottom: 0; padding: 2px 4px; border-radius: 6px 0 8px 0; color: #fff; background: rgba(0, 0, 0, 0.48); backdrop-filter: blur(3px); font-size: 0.56rem; font-weight: 750; line-height: 1; }
+    .app-title-group { min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; overflow: hidden; padding-inline-start: 2px; }
+    .app-title { font-size: 1.18rem; font-weight: 800; line-height: 1.2; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+    .app-save-status { font-size: 0.74rem; color: var(--muted); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .app-header-actions { display: flex; gap: 6px; align-items: center; }
     .ui-icon { width: 18px; height: 18px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
     .more-menu-wrap { position: relative; }
@@ -445,7 +448,10 @@
     @media (max-width: 560px) {
       :root { --header-h: 80px; }
       .app-header { height: var(--header-h); min-height: var(--header-h); padding: 8px 10px; gap: 8px; }
+      .app-brand { min-width: 44px; }
+      .app-icon-wrap { width: 38px; height: 38px; }
       .app-title-group { min-width: 0; flex: 1 1 105px; }
+      .app-title { font-size: 1.02rem; }
       .app-header-actions { gap: 4px; flex: 0 0 auto; }
       .app-header-actions > .btn-icon { width: 40px; padding: 0; justify-content: center; }
       .app-header-actions > .btn-icon .button-label { display: none; }
@@ -547,10 +553,15 @@
 </head>
 <body>
   <header class="app-header">
+    <div class="app-brand" aria-label="Phase 10">
+      <span class="app-brand-label">Phase</span>
+      <span class="app-icon-wrap">
+        <img src="./icon-192.png" alt="">
+        <span class="app-version" id="appVersion"></span>
+      </span>
+    </div>
     <div class="app-title-group">
-      <div class="app-version" id="appVersion"></div>
       <div class="app-title" id="appTitle">Phase 10 App</div>
-      <div class="app-subtitle" id="appSubtitle">OneDrive Modus</div>
       <div class="app-save-status" id="appSaveStatus" aria-live="polite">Lokaler Speicher wird vorbereitet …</div>
     </div>
     <div class="app-header-actions">
@@ -786,7 +797,7 @@
   </dialog>
 
   <script>
-    const APP_VERSION = "1.5";
+    const APP_VERSION = "1.6";
     document.getElementById("appVersion").textContent = `v${APP_VERSION}`;
     const appDialog = document.getElementById("appDialog");
     const appDialogTitle = document.getElementById("appDialogTitle");
@@ -1142,7 +1153,6 @@
 
     function updateHeader() {
       document.getElementById("appTitle").textContent = state.groupName || "Phase 10 App";
-      document.getElementById("appSubtitle").textContent = `Spiel ${state.gameNumber} • ${state.players.length} Spieler`;
     }
 
     function getDealer(rNo) {
