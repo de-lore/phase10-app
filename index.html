@@ -83,7 +83,10 @@
       padding: 0 16px;
       flex-shrink: 0;
       z-index: 10;
+      overflow: hidden;
+      transition: height 220ms ease, min-height 220ms ease, padding 220ms ease, opacity 180ms ease, border-color 180ms ease;
     }
+    body.header-collapsed .app-header { height: 0; min-height: 0; padding-top: 0; padding-bottom: 0; border-bottom-width: 0; opacity: 0; pointer-events: none; }
     .app-title-group { display: flex; flex-direction: column; overflow: hidden; }
     .app-version { font-size: 0.68rem; color: var(--muted); font-weight: 600; line-height: 1; }
     .app-title { font-size: 1.05rem; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
@@ -406,7 +409,8 @@
       .scores-grid-container { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); overflow: visible; }
     }
     @media (max-width: 560px) {
-      .app-header { height: auto; min-height: var(--header-h); padding: 8px 10px; gap: 8px; }
+      :root { --header-h: 80px; }
+      .app-header { height: var(--header-h); min-height: var(--header-h); padding: 8px 10px; gap: 8px; }
       .app-title-group { min-width: 0; flex: 1 1 105px; }
       .app-header-actions { gap: 4px; flex: 0 0 auto; }
       .app-header-actions > .btn-icon { width: 40px; padding: 0; justify-content: center; }
@@ -685,7 +689,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "0.6";
+    const APP_VERSION = "0.7";
     document.getElementById("appVersion").textContent = `v${APP_VERSION}`;
     const PHASES_CLASSIC = {
       1: "2 Drillinge", 2: "1 Drilling + 1 Viererfolge", 3: "1 Vierling + 1 Viererfolge",
@@ -805,8 +809,28 @@
 
     const views = document.querySelectorAll(".view");
     const navTabs = document.querySelectorAll(".nav-tab");
+    const appMain = document.querySelector(".app-main");
+    let lastMainScrollTop = 0;
+    let ignoreHeaderScrollUntil = 0;
     const setupPlayersGrid = document.getElementById("setupPlayersGrid");
     const setupPlayerCount = document.getElementById("setupPlayerCount");
+
+    function setHeaderCollapsed(collapsed) {
+      const header = document.querySelector(".app-header");
+      const isCollapsed = document.body.classList.contains("header-collapsed");
+      if (isCollapsed === collapsed) return;
+      document.body.classList.toggle("header-collapsed", collapsed);
+      header.inert = collapsed;
+      header.setAttribute("aria-hidden", String(collapsed));
+      ignoreHeaderScrollUntil = Date.now() + 280;
+      if (collapsed) {
+        const menu = document.getElementById("moreMenu");
+        const menuButton = document.getElementById("btnMoreMenu");
+        if (menu) menu.hidden = true;
+        menuButton?.setAttribute("aria-expanded", "false");
+      }
+      requestAnimationFrame(() => { lastMainScrollTop = appMain.scrollTop; });
+    }
 
     function setView(id) {
       views.forEach(v => v.classList.toggle("active", v.id === id));
@@ -815,7 +839,26 @@
         t.classList.toggle("active", active);
         t.setAttribute("aria-pressed", String(active));
       });
+      if (id !== "view-round") setHeaderCollapsed(false);
     }
+
+    appMain.addEventListener("scroll", () => {
+      const currentTop = appMain.scrollTop;
+      const playing = state.started && document.getElementById("view-round").classList.contains("active");
+      if (!playing || currentTop <= 8) {
+        setHeaderCollapsed(false);
+        lastMainScrollTop = currentTop;
+        return;
+      }
+      if (Date.now() < ignoreHeaderScrollUntil) {
+        lastMainScrollTop = currentTop;
+        return;
+      }
+      const delta = currentTop - lastMainScrollTop;
+      if (delta > 6) setHeaderCollapsed(true);
+      else if (delta < -6) setHeaderCollapsed(false);
+      lastMainScrollTop = currentTop;
+    }, { passive: true });
 
     navTabs.forEach(t => {
       t.addEventListener("click", () => {
