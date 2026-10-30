@@ -88,11 +88,11 @@
       transition: height 220ms ease, min-height 220ms ease, padding 220ms ease, opacity 180ms ease, border-color 180ms ease;
     }
     body.header-collapsed .app-header { height: 0; min-height: 0; padding-top: 0; padding-bottom: 0; border-bottom-width: 0; opacity: 0; overflow: hidden; pointer-events: none; }
-    .app-brand { height: 100%; min-width: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; flex: 0 0 auto; }
-    .app-brand-label { font-size: 0.72rem; font-weight: 800; line-height: 1; color: var(--primary); letter-spacing: 0.01em; }
-    .app-icon-wrap { position: relative; width: 42px; height: 42px; flex: 0 0 auto; }
+    .app-brand { height: 100%; display: flex; align-items: center; justify-content: flex-start; gap: 5px; flex: 0 0 auto; }
+    .app-brand-label { font-size: 2.25rem; font-weight: 900; line-height: 0.95; color: var(--primary); letter-spacing: -0.07em; }
+    .app-icon-wrap { position: relative; width: 60px; height: 60px; flex: 0 0 auto; }
     .app-icon-wrap img { display: block; width: 100%; height: 100%; object-fit: contain; }
-    .app-version { position: absolute; right: 0; bottom: 0; padding: 2px 4px; border-radius: 6px 0 8px 0; color: #fff; background: rgba(0, 0, 0, 0.48); backdrop-filter: blur(3px); font-size: 0.56rem; font-weight: 750; line-height: 1; }
+    .app-version { position: absolute; right: 0; bottom: 0; padding: 2px 4px; border-radius: 6px 0 8px 0; color: rgba(255, 255, 255, 0.78); background: rgba(0, 0, 0, 0.2); backdrop-filter: blur(2px); font-size: 0.56rem; font-weight: 750; line-height: 1; }
     .app-title-group { min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; overflow: hidden; padding-inline-start: 2px; }
     .app-title { font-size: 1.18rem; font-weight: 800; line-height: 1.2; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
     .app-save-status { font-size: 0.74rem; color: var(--muted); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -448,8 +448,9 @@
     @media (max-width: 560px) {
       :root { --header-h: 80px; }
       .app-header { height: var(--header-h); min-height: var(--header-h); padding: 8px 10px; gap: 8px; }
-      .app-brand { min-width: 44px; }
-      .app-icon-wrap { width: 38px; height: 38px; }
+      .app-brand { gap: 3px; }
+      .app-brand-label { font-size: 1.9rem; }
+      .app-icon-wrap { width: 54px; height: 54px; }
       .app-title-group { min-width: 0; flex: 1 1 105px; }
       .app-title { font-size: 1.02rem; }
       .app-header-actions { gap: 4px; flex: 0 0 auto; }
@@ -797,7 +798,7 @@
   </dialog>
 
   <script>
-    const APP_VERSION = "1.6";
+    const APP_VERSION = "1.7";
     document.getElementById("appVersion").textContent = `v${APP_VERSION}`;
     const appDialog = document.getElementById("appDialog");
     const appDialogTitle = document.getElementById("appDialogTitle");
