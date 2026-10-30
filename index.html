@@ -473,6 +473,46 @@
       display: grid;
       gap: 10px;
     }
+    .app-dialog {
+      width: min(440px, calc(100vw - 32px));
+      max-width: 100%;
+      padding: 0;
+      border: 0;
+      border-radius: 24px;
+      background: transparent;
+      color: var(--text);
+      overflow: visible;
+    }
+    .app-dialog::backdrop { background: rgba(10, 20, 18, 0.48); backdrop-filter: blur(4px); }
+    .app-dialog-card {
+      padding: 24px;
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      background: var(--surface);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.24);
+    }
+    .app-dialog-mark {
+      width: 42px;
+      height: 42px;
+      margin-bottom: 14px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      background: color-mix(in srgb, var(--primary) 12%, var(--surface));
+      color: var(--primary);
+      font-size: 1.2rem;
+      font-weight: 800;
+    }
+    .app-dialog[data-tone="warning"] .app-dialog-mark { background: var(--warning-bg); color: var(--warning); }
+    .app-dialog[data-tone="success"] .app-dialog-mark { background: var(--success-bg); color: var(--success); }
+    .app-dialog-title { margin: 0; font-size: 1.12rem; line-height: 1.3; font-weight: 750; }
+    .app-dialog-message { margin: 10px 0 22px; color: var(--muted); font-size: 0.94rem; line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; max-height: min(52vh, 420px); overflow-y: auto; }
+    .app-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
+    .app-dialog-actions .btn { min-width: 92px; min-height: 44px; }
+    @media (max-width: 480px) {
+      .app-dialog { width: calc(100vw - 28px); }
+      .app-dialog-card { padding: 20px; border-radius: 22px; }
+    }
   </style>
 </head>
 <body>
@@ -702,9 +742,77 @@
     </div>
   </div>
 
+  <dialog class="app-dialog" id="appDialog" aria-labelledby="appDialogTitle" aria-describedby="appDialogMessage">
+    <div class="app-dialog-card">
+      <div class="app-dialog-mark" id="appDialogMark" aria-hidden="true">i</div>
+      <h2 class="app-dialog-title" id="appDialogTitle">Hinweis</h2>
+      <div class="app-dialog-message" id="appDialogMessage"></div>
+      <div class="app-dialog-actions">
+        <button class="btn ghost" id="appDialogCancel" type="button">Abbrechen</button>
+        <button class="btn primary" id="appDialogAccept" type="button">OK</button>
+      </div>
+    </div>
+  </dialog>
+
   <script>
-    const APP_VERSION = "0.10";
+    const APP_VERSION = "1.0";
     document.getElementById("appVersion").textContent = `v${APP_VERSION}`;
+    const appDialog = document.getElementById("appDialog");
+    const appDialogTitle = document.getElementById("appDialogTitle");
+    const appDialogMessage = document.getElementById("appDialogMessage");
+    const appDialogMark = document.getElementById("appDialogMark");
+    const appDialogCancel = document.getElementById("appDialogCancel");
+    const appDialogAccept = document.getElementById("appDialogAccept");
+    let appDialogResolver = null;
+
+    function finishAppDialog(result) {
+      if (!appDialogResolver) return;
+      const resolve = appDialogResolver;
+      appDialogResolver = null;
+      if (appDialog.open) appDialog.close();
+      resolve(result);
+    }
+
+    function showAppDialog(message, options = {}) {
+      const {
+        title = "Hinweis",
+        confirm = false,
+        confirmLabel = "Fortfahren",
+        cancelLabel = "Abbrechen",
+        destructive = false,
+        tone = confirm ? "warning" : "info",
+        mark = tone === "warning" ? "!" : "i"
+      } = options;
+      if (appDialog.open) return Promise.resolve(false);
+      appDialog.dataset.tone = tone;
+      appDialogTitle.textContent = title;
+      appDialogMessage.textContent = String(message);
+      appDialogMark.textContent = mark;
+      appDialogCancel.hidden = !confirm;
+      appDialogCancel.textContent = cancelLabel;
+      appDialogAccept.textContent = confirm ? confirmLabel : "OK";
+      appDialogAccept.className = `btn ${destructive ? "warn" : "primary"}`;
+      appDialogResolver = null;
+      const result = new Promise(resolve => { appDialogResolver = resolve; });
+      appDialog.showModal();
+      requestAnimationFrame(() => (confirm ? appDialogCancel : appDialogAccept).focus());
+      return result;
+    }
+
+    function showMessage(message, options = {}) {
+      return showAppDialog(message, { ...options, confirm: false });
+    }
+
+    function showConfirm(message, options = {}) {
+      return showAppDialog(message, { ...options, confirm: true });
+    }
+
+    appDialogAccept.addEventListener("click", () => finishAppDialog(true));
+    appDialogCancel.addEventListener("click", () => finishAppDialog(false));
+    appDialog.addEventListener("cancel", event => {
+      event.preventDefault();
+      finishAppDialog(false);
+    });
     const PHASES_CLASSIC = {
       1: "2 Drillinge", 2: "1 Drilling + 1 Viererfolge", 3: "1 Vierling + 1 Viererfolge",
       4: "1 Siebenerfolge", 5: "1 Achterfolge", 6: "1 Neunerfolge", 7: "2 Vierlinge",
@@ -894,7 +1002,7 @@
     navTabs.forEach(t => {
       t.addEventListener("click", () => {
         if (!state.started && t.dataset.view !== "view-setup" && t.dataset.view !== "view-archive") {
-          return alert("Bitte zuerst eine Gruppe starten oder eine Datei laden.");
+          return showMessage("Bitte zuerst eine Gruppe starten oder eine Datei laden.", { title: "Spiel noch nicht gestartet", tone: "warning" });
         }
         setView(t.dataset.view);
       });
@@ -974,7 +1082,7 @@
       const colors = setupFormData.map(p => p.color);
       const dealerIdx = setupFormData.findIndex(p => p.isDealer);
 
-      if (names.some(n => !n)) return alert("Bitte alle Spielernamen eintragen.");
+      if (names.some(n => !n)) return showMessage("Bitte alle Spielernamen eintragen.", { title: "Spielernamen fehlen", tone: "warning" });
 
       state.groupName = document.getElementById("setupGroupName").value.trim() || "Phase 10";
       state.playerCount = count;
@@ -1014,7 +1122,7 @@
 
     document.getElementById("btnOpenSeats").addEventListener("click", () => {
       if (!state.players || !state.players.length) {
-        return alert("Bitte zuerst eine Gruppe anlegen oder über 'Laden' öffnen.");
+        return showMessage("Bitte zuerst eine Gruppe anlegen oder über „Gruppe laden“ öffnen.", { title: "Keine Gruppe geöffnet", tone: "warning" });
       }
       openSeatsModal();
     });
@@ -1104,12 +1212,12 @@
       modalSeats.classList.remove("active");
       renderAll();
       saveAutoStorage();
-      alert("Sitzordnung & Start-Dealer erfolgreich aktualisiert!");
+      showMessage("Sitzordnung und Start-Dealer wurden aktualisiert.", { title: "Einstellungen gespeichert", tone: "success", mark: "✓" });
     });
 
-    document.getElementById("curGameVariant").addEventListener("change", (e) => {
+    document.getElementById("curGameVariant").addEventListener("change", async (e) => {
       if (state.rounds.length > 0) {
-        if (!confirm("Achtung: Es wurden bereits Runden gespielt. Variante wirklich mitten im Spiel ändern?")) {
+        if (!await showConfirm("Es wurden bereits Runden gespielt. Möchtest du die Variante mitten im Spiel ändern?", { title: "Variante ändern?", confirmLabel: "Variante ändern" })) {
           e.target.value = state.gameVariant;
           return;
         }
@@ -1119,9 +1227,9 @@
       renderAll();
     });
 
-    document.getElementById("curGameMode").addEventListener("change", (e) => {
+    document.getElementById("curGameMode").addEventListener("change", async (e) => {
       if (state.rounds.length > 0) {
-        if (!confirm("Achtung: Es wurden bereits Runden gespielt. Modus wirklich mitten im Spiel ändern?")) {
+        if (!await showConfirm("Es wurden bereits Runden gespielt. Möchtest du den Modus mitten im Spiel ändern?", { title: "Modus ändern?", confirmLabel: "Modus ändern" })) {
           e.target.value = state.phaseMode;
           return;
         }
@@ -1250,7 +1358,7 @@
       setView("view-history");
     });
 
-    document.getElementById("btnSaveRound").addEventListener("click", () => {
+    document.getElementById("btnSaveRound").addEventListener("click", async () => {
       const pEls = [...document.querySelectorAll(".r-phase")];
       const ptEls = [...document.querySelectorAll(".r-points")];
       const entries = [];
@@ -1258,11 +1366,11 @@
       for (const p of state.players) {
         const pSel = pEls.find(el => String(el.dataset.id) === String(p.id));
         const ptIn = ptEls.find(el => String(el.dataset.id) === String(p.id));
-        if (!pSel || !ptIn) return alert("Eingabefeld nicht gefunden.");
+        if (!pSel || !ptIn) return showMessage("Ein Eingabefeld für die Runde fehlt. Bitte wechsle kurz die Ansicht und versuche es erneut.", { title: "Eingabe nicht verfügbar", tone: "warning" });
         const ptStr = ptIn.value.trim();
-        if (ptStr === "") return alert(`Bitte Punkte für ${p.name} eingeben.`);
+        if (ptStr === "") return showMessage(`Bitte trage die Punkte für ${p.name} ein.`, { title: "Punkte fehlen", tone: "warning" });
         const points = Number(ptStr);
-        if (isNaN(points) || points < 0) return alert(`Ungültige Punktzahl für ${p.name}.`);
+        if (isNaN(points) || points < 0) return showMessage(`Die Punktzahl für ${p.name} ist ungültig.`, { title: "Punktzahl prüfen", tone: "warning" });
         entries.push({
           playerId: p.id,
           name: p.name,
@@ -1273,11 +1381,11 @@
       }
 
       if (entries.filter(e => e.points === 0).length !== 1) {
-        return alert("Genau ein Spieler muss 0 Punkte haben (Rundensieger).");
+        return showMessage("Genau ein Spieler muss 0 Punkte haben und damit Rundensieger sein.", { title: "Rundensieger prüfen", tone: "warning" });
       }
 
       const review = entries.map(e => `${e.name}: ${e.phase > 0 ? `Phase ${e.phase} geschafft` : "keine Phase"}, ${e.points} Punkte${e.points === 0 ? " (Rundensieger)" : ""}`).join("\n");
-      if (!confirm(`Bitte Eingaben prüfen:\n\n${review}\n\n${editingRoundIndex !== null ? "Korrektur speichern?" : "Runde jetzt werten?"}`)) return;
+      if (!await showConfirm(`Bitte prüfe die Eingaben:\n\n${review}`, { title: editingRoundIndex !== null ? "Korrektur speichern?" : "Runde werten?", confirmLabel: editingRoundIndex !== null ? "Speichern" : "Runde werten" })) return;
 
       if (editingRoundIndex !== null) {
         state.rounds[editingRoundIndex].entries = entries;
@@ -1286,7 +1394,7 @@
         renderAll();
         saveAutoStorage();
         setView("view-history");
-        alert("Runde erfolgreich korrigiert! Alle Punkte wurden neu berechnet.");
+        showMessage("Die Runde wurde korrigiert und alle Punkte wurden neu berechnet.", { title: "Korrektur gespeichert", tone: "success", mark: "✓" });
         return;
       }
 
@@ -1354,11 +1462,12 @@
       }
     }
 
-    document.getElementById("btnUndoRound").addEventListener("click", () => {
-      if (!state.rounds.length) return alert("Es ist keine Runde zum Rückgängigmachen vorhanden.");
+    document.getElementById("btnUndoRound").addEventListener("click", async () => {
+      if (!state.rounds.length) return showMessage("Es gibt keine Runde zum Rückgängigmachen.", { title: "Keine Runde vorhanden", tone: "warning" });
       const last = state.rounds[state.rounds.length - 1];
-      const confirmDelete = confirm(
-        `Möchtest du Runde ${last.round} (Spiel ${last.game}) wirklich löschen?\n\nDie Punkte und Phasen dieser Runde werden für alle Spieler zurückgesetzt.`
+      const confirmDelete = await showConfirm(
+        `Spiel ${last.game} · Runde ${last.round}\n\nPunkte und Phasen dieser Runde werden für alle Spieler zurückgesetzt.`,
+        { title: "Letzte Runde zurücknehmen?", confirmLabel: "Runde zurücknehmen", destructive: true }
       );
       if (!confirmDelete) return;
 
@@ -1535,10 +1644,11 @@
       `).join("");
     }
 
-    document.getElementById("btnArchiveEvening").addEventListener("click", () => {
-      if (!state.eveningSeries.length) return alert("Es gibt noch keine beendeten Spiele an diesem Abend.");
-      const confirmArchive = confirm(
-        "Möchtest du den aktuellen Abend abschließen und ins Langzeit-Archiv übernehmen?\n\nDie Ergebnisse wandern in die ewige Tabelle und das Board wird für den nächsten Abend zurückgesetzt."
+    document.getElementById("btnArchiveEvening").addEventListener("click", async () => {
+      if (!state.eveningSeries.length) return showMessage("An diesem Abend wurde noch kein Spiel beendet.", { title: "Noch keine Ergebnisse", tone: "warning" });
+      const confirmArchive = await showConfirm(
+        "Die Ergebnisse werden in die ewige Tabelle übernommen. Das aktuelle Spielbrett wird anschließend für den nächsten Abend zurückgesetzt.",
+        { title: "Abend archivieren?", confirmLabel: "Abend abschließen", destructive: true }
       );
       if (!confirmArchive) return;
 
@@ -1574,7 +1684,7 @@
       renderAll();
       saveAutoStorage();
       setView("view-archive");
-      alert("Der Abend wurde erfolgreich archiviert! Sichere den Stand mit 💾 Speichern in OneDrive.\n\nFür den nächsten Abend kannst du oben über '⚙️ Sitze' jederzeit die Sitzordnung und den Start-Dealer neu festlegen.");
+      showMessage("Der Abend wurde archiviert. Den Stand kannst du über „OneDrive“ in deiner Datei sichern.", { title: "Abend archiviert", tone: "success", mark: "✓" });
     });
 
     function renderArchiveView() {
@@ -1669,8 +1779,8 @@
       }
     }
 
-    window.deleteArchivedEvening = function(index) {
-      if (!confirm("Möchtest du diesen archivierten Abend wirklich aus der Historie löschen?")) return;
+    window.deleteArchivedEvening = async function(index) {
+      if (!await showConfirm("Dieser Abend wird aus der Historie entfernt.", { title: "Archivierten Abend löschen?", confirmLabel: "Abend löschen", destructive: true })) return;
       state.archivedEvenings.splice(index, 1);
       renderArchiveView();
       saveAutoStorage();
@@ -1687,7 +1797,7 @@
     // Direct OneDrive File Access
     document.getElementById("btnSave").addEventListener("click", async () => {
       if (!state.started && !state.archivedEvenings.length) {
-        return alert("Keine aktive Gruppe oder Historie zum Speichern vorhanden.");
+        return showMessage("Es gibt keine aktive Gruppe und kein Archiv zum Speichern.", { title: "Nichts zu speichern", tone: "warning" });
       }
       const dataStr = JSON.stringify(state, null, 2);
       if (window.showSaveFilePicker) {
@@ -1703,7 +1813,7 @@
           await writable.write(dataStr);
           await writable.close();
           setSaveStatus("In OneDrive gespeichert");
-          alert("Erfolgreich direkt im OneDrive-Ordner gespeichert!");
+          showMessage("Der Spielstand wurde direkt in OneDrive gespeichert.", { title: "OneDrive gespeichert", tone: "success", mark: "✓" });
           return;
         } catch (err) {
           if (err.name === "AbortError") return;
@@ -1718,7 +1828,7 @@
     });
 
     document.getElementById("btnBackup").addEventListener("click", () => {
-      if (!state.started && !state.archivedEvenings.length) return alert("Keine aktive Gruppe oder Historie zum Sichern vorhanden.");
+      if (!state.started && !state.archivedEvenings.length) return showMessage("Es gibt keine aktive Gruppe und kein Archiv für ein Backup.", { title: "Nichts zu sichern", tone: "warning" });
       const dateStr = new Date().toISOString().slice(0, 10);
       const group = (state.groupName || "Phase10").replace(/[^a-z0-9_-]/gi, "_");
       downloadJSON({ ...state, _roundDraft: roundDraft }, `${group}_Backup_${dateStr}.json`);
@@ -1775,7 +1885,7 @@
           });
           const file = await handle.getFile();
           const text = await file.text();
-          if (loadStateFromJSON(text)) fileHandle = handle;
+          if (await loadStateFromJSON(text)) fileHandle = handle;
           return;
         } catch (err) {
           if (err.name === "AbortError") return;
@@ -1788,12 +1898,12 @@
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = (evt) => loadStateFromJSON(evt.target.result);
+      reader.onload = async (evt) => { await loadStateFromJSON(evt.target.result); };
       reader.readAsText(file);
       e.target.value = "";
     });
 
-    function loadStateFromJSON(jsonText) {
+    async function loadStateFromJSON(jsonText) {
       try {
         const loaded = JSON.parse(jsonText);
         if (!loaded || typeof loaded !== "object") throw new Error();
@@ -1802,12 +1912,12 @@
         const hasLocalGame = localState && (localState.started || localState.players?.length || localState.archivedEvenings?.length);
         const hasDifference = hasLocalGame && stableStringify(comparableGameData(localState)) !== stableStringify(comparableGameData(loaded));
         if (hasDifference) {
-          const message = `Der lokale Spielstand weicht von der Datei ab.\n\nLokal: ${describeGameData(localState)}\nDatei: ${describeGameData(loaded)}\n\nOK erstellt zuerst ein Backup des lokalen Stands. Abbrechen lässt alles unverändert.`;
-          if (!confirm(message)) return false;
+          const message = `Der lokale Spielstand weicht von der Datei ab.\n\nLokal: ${describeGameData(localState)}\nDatei: ${describeGameData(loaded)}\n\nDu kannst zuerst ein Backup des lokalen Stands erstellen. Abbrechen lässt alles unverändert.`;
+          if (!await showConfirm(message, { title: "Spielstände unterscheiden sich", confirmLabel: "Backup erstellen" })) return false;
           const group = (localState.groupName || "Phase10").replace(/[^a-z0-9_-]/gi, "_");
           const dateStr = new Date().toISOString().slice(0, 10);
           downloadJSON(localState, `${group}_VorImport_${dateStr}.json`);
-          if (!confirm("Das Backup wurde zum Download bereitgestellt. Soll jetzt die ausgewählte Datei geladen und der lokale Spielstand ersetzt werden?")) return false;
+          if (!await showConfirm("Das Backup wurde zum Download bereitgestellt. Möchtest du jetzt die ausgewählte Datei laden und den lokalen Spielstand ersetzen?", { title: "Datei jetzt laden?", confirmLabel: "Datei laden", destructive: true })) return false;
         }
         roundDraft = loaded._roundDraft || null;
         delete loaded._roundDraft;
@@ -1822,16 +1932,16 @@
         saveAutoStorage();
         setView(state.started ? "view-scores" : "view-archive");
         setSaveStatus("Lokal gespeichert · Datei geladen");
-        alert(`Gruppe „${state.groupName || 'Phase 10'}“ geladen!`);
+        showMessage(`Die Gruppe „${state.groupName || "Phase 10"}“ wurde geladen.`, { title: "Gruppe geladen", tone: "success", mark: "✓" });
         return true;
       } catch (e) {
-        alert("Ungültige Phase-10-Datei.");
+        showMessage("Die Datei ist ungültig oder konnte nicht gelesen werden.", { title: "Datei konnte nicht geladen werden", tone: "warning" });
         return false;
       }
     }
 
-    document.getElementById("btnNew").addEventListener("click", () => {
-      if (confirm("Neue Gruppe anlegen?")) {
+    document.getElementById("btnNew").addEventListener("click", async () => {
+      if (await showConfirm("Der aktuelle Stand wird lokal durch die neue Gruppe ersetzt. Erstelle vorher ein Backup, wenn du ihn behalten möchtest.", { title: "Neue Gruppe erstellen?", confirmLabel: "Neue Gruppe", destructive: true })) {
         fileHandle = null;
         roundDraft = null;
         state = defaultState();
