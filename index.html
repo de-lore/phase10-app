@@ -360,7 +360,7 @@
     }
     .scores-grid-container {
       display: grid;
-      grid-template-columns: repeat(var(--p-count, 4), minmax(240px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
       gap: 12px;
       width: 100%;
       overflow-x: auto;
@@ -408,6 +408,20 @@
     #view-scores .p-badge-full .check-mark { font-size: 0.9rem; }
     #view-scores .p-tag { min-width: 27px; font-size: 0.72rem; }
     #view-scores .p-desc { font-size: 0.84rem; line-height: 1.2; }
+    /* Vier Spieler bekommen auf Tablets mehr Lesbarkeit; fünf oder sechs
+       bleiben kompakt, damit möglichst wenig gescrollt werden muss. */
+    #scoresGrid[data-player-count="4"] .player-card { padding: 15px; }
+    #scoresGrid[data-player-count="4"] .phase-full-list { gap: 4px; margin-top: 10px; }
+    #scoresGrid[data-player-count="4"] .p-badge-full { min-height: 35px; padding: 7px 9px; }
+    #scoresGrid[data-player-count="4"] .p-tag { font-size: 0.78rem; }
+    #scoresGrid[data-player-count="4"] .p-desc { font-size: 0.92rem; line-height: 1.24; }
+    #scoresGrid[data-player-count="5"], #scoresGrid[data-player-count="6"] { gap: 9px; }
+    #scoresGrid[data-player-count="5"] .player-card,
+    #scoresGrid[data-player-count="6"] .player-card { padding: 10px; }
+    #scoresGrid[data-player-count="5"] .p-badge-full,
+    #scoresGrid[data-player-count="6"] .p-badge-full { min-height: 29px; padding: 4px 6px; gap: 5px; }
+    #scoresGrid[data-player-count="5"] .p-desc,
+    #scoresGrid[data-player-count="6"] .p-desc { font-size: 0.8rem; }
     .table-wrap { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
@@ -443,6 +457,8 @@
       #view-scores .phase-full-list { gap: 2px; margin-top: 6px; }
       #view-scores .p-badge-full { min-height: 27px; padding: 3px 6px; }
       #view-scores .p-desc { font-size: 0.8rem; }
+      #scoresGrid[data-player-count="4"] .p-badge-full { min-height: 31px; padding: 4px 7px; }
+      #scoresGrid[data-player-count="4"] .p-desc { font-size: 0.88rem; }
     }
     :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
     @media (prefers-reduced-motion: reduce) {
@@ -762,7 +778,7 @@
   </dialog>
 
   <script>
-    const APP_VERSION = "1.1";
+    const APP_VERSION = "1.2";
     document.getElementById("appVersion").textContent = `v${APP_VERSION}`;
     const appDialog = document.getElementById("appDialog");
     const appDialogTitle = document.getElementById("appDialogTitle");
@@ -1537,6 +1553,7 @@
         sub.textContent = `Aktuell: ${vText} • ${mText}`;
       }
       container.style.setProperty("--p-count", state.players.length);
+      container.dataset.playerCount = String(state.players.length);
 
       const sorted = [...state.players].sort((a,b) => b.currentPhase - a.currentPhase || a.totalPoints - b.totalPoints);
       const nextDealer = getDealer(state.rounds.length + 1);
