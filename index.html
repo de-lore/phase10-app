@@ -819,7 +819,7 @@
   </dialog>
 
   <script>
-    const APP_VERSION = "1.11";
+    const APP_VERSION = "1.12";
     document.getElementById("appVersion").textContent = `v${APP_VERSION}`;
     const appDialog = document.getElementById("appDialog");
     const appDialogTitle = document.getElementById("appDialogTitle");
@@ -918,6 +918,84 @@
     let state = defaultState();
     let roundDraft = null;
     let fileHandle = null;
+    let fileHandleGroupName = null;
+    const FILE_HANDLE_DB = "phase10-file-handles";
+    const FILE_HANDLE_STORE = "saved-files";
+
+    function openFileHandleDB() {
+      return new Promise((resolve, reject) => {
+        if (!("indexedDB" in window)) return reject(new Error("IndexedDB unavailable"));
+        const request = indexedDB.open(FILE_HANDLE_DB, 1);
+        request.onupgradeneeded = () => request.result.createObjectStore(FILE_HANDLE_STORE);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    async function readSavedFileHandle() {
+      try {
+        const db = await openFileHandleDB();
+        return await new Promise((resolve, reject) => {
+          const request = db.transaction(FILE_HANDLE_STORE, "readonly").objectStore(FILE_HANDLE_STORE).get("active");
+          request.onsuccess = () => {
+            const saved = request.result;
+            if (saved?.handle) {
+              fileHandleGroupName = saved.groupName || null;
+              resolve(saved.handle);
+            } else resolve(null);
+          };
+          request.onerror = () => reject(request.error);
+          db.close();
+        });
+      } catch (e) { return null; }
+    }
+
+    async function writeSavedFileHandle(handle, groupName = state.groupName) {
+      try {
+        const db = await openFileHandleDB();
+        await new Promise((resolve, reject) => {
+          const tx = db.transaction(FILE_HANDLE_STORE, "readwrite");
+          tx.objectStore(FILE_HANDLE_STORE).put({ handle, groupName: groupName || "" }, "active");
+          tx.oncomplete = resolve;
+          tx.onerror = () => reject(tx.error);
+          tx.onabort = () => reject(tx.error);
+        });
+        db.close();
+      } catch (e) {}
+    }
+
+    async function clearSavedFileHandle() {
+      try {
+        const db = await openFileHandleDB();
+        await new Promise((resolve, reject) => {
+          const tx = db.transaction(FILE_HANDLE_STORE, "readwrite");
+          tx.objectStore(FILE_HANDLE_STORE).delete("active");
+          tx.oncomplete = resolve;
+          tx.onerror = () => reject(tx.error);
+          tx.onabort = () => reject(tx.error);
+        });
+        db.close();
+      } catch (e) {}
+    }
+
+    async function hasFileWritePermission(handle) {
+      if (!handle.queryPermission) return true;
+      let permission = await handle.queryPermission({ mode: "readwrite" });
+      if (permission !== "granted" && handle.requestPermission) {
+        permission = await handle.requestPermission({ mode: "readwrite" });
+      }
+      return permission === "granted";
+    }
+
+    const fileHandleReady = readSavedFileHandle().then(savedHandle => {
+      fileHandle = savedHandle;
+      return savedHandle;
+    });
+    const saveFileButton = document.getElementById("btnSave");
+    if (saveFileButton) {
+      saveFileButton.disabled = true;
+      fileHandleReady.finally(() => { saveFileButton.disabled = false; });
+    }
     let PHASES = PHASES_CLASSIC;
     let editingRoundIndex = null;
     let setupFormData = [];
@@ -1962,42 +2040,36 @@
       }
       const dataStr = JSON.stringify({ ...state, _roundDraft: roundDraft }, null, 2);
       const groupName = (state.groupName || "Phase10").replace(/[^a-z0-9_-]/gi, "_");
-      const dateStr = new Date().toISOString().slice(0, 10);
-      const exportName = groupName + "_" + dateStr + ".json";
+      const exportName = groupName + "_Spielstand.json";
       const isAndroidDevice = /Android/i.test(navigator.userAgent);
-      if (window.showSaveFilePicker && !isAndroidDevice) {
+      if (window.showSaveFilePicker) {
         try {
+          if (fileHandle && fileHandleGroupName && fileHandleGroupName !== state.groupName) {
+            fileHandle = null;
+            fileHandleGroupName = null;
+            await clearSavedFileHandle();
+          }
+          if (fileHandle && !await hasFileWritePermission(fileHandle)) {
+            fileHandle = null;
+            fileHandleGroupName = null;
+            await clearSavedFileHandle();
+          }
           if (!fileHandle) {
             fileHandle = await window.showSaveFilePicker({
               suggestedName: exportName,
               types: [{ description: "JSON Datei", accept: { "application/json": [".json"] } }]
             });
+            fileHandleGroupName = state.groupName || "";
           }
           const writable = await fileHandle.createWritable();
           await writable.write(dataStr);
           await writable.close();
-          setSaveStatus("Lokal + OneDrive gespeichert", "cloud");
-          showMessage("Der Spielstand wurde direkt in OneDrive gespeichert.", { title: "OneDrive gespeichert", tone: "success", mark: "✓" });
+          await writeSavedFileHandle(fileHandle, state.groupName);
+          setSaveStatus("Datei gespeichert · " + fileHandle.name, "backup");
+          showMessage("Der Spielstand wurde in „" + fileHandle.name + "“ gespeichert. Weitere Speicherungen überschreiben dieselbe Datei.", { title: "Spielstand gespeichert", tone: "success", mark: "✓" });
           return;
         } catch (err) {
           if (err.name === "AbortError") return;
-        }
-      }
-      if (navigator.share && navigator.canShare && typeof File !== "undefined") {
-        const exportFile = new File([dataStr], exportName, { type: "application/json" });
-        if (navigator.canShare({ files: [exportFile] })) {
-          try {
-            await navigator.share({
-              files: [exportFile],
-              title: "Phase-10-Spielstand",
-              text: "In OneDrive ablegen oder in OneNote als Dateianhang speichern."
-            });
-            setSaveStatus("Spielstand an App übergeben", "backup");
-            showMessage("Die Datei wurde an die ausgewählte App übergeben. In OneDrive kannst du sie hochladen. OneNote speichert Dateianhänge als Kopie; sie werden nicht automatisch mit späteren Spielständen aktualisiert.", { title: "Spielstand geteilt", tone: "success", mark: "✓" });
-            return;
-          } catch (err) {
-            if (err.name === "AbortError") return;
-          }
         }
       }
       const blob = new Blob([dataStr], { type: "application/json" });
@@ -2007,7 +2079,7 @@
       a.click();
       setSaveStatus("Lokal gespeichert · Backup heruntergeladen", "backup");
       if (isAndroidDevice) {
-        showMessage("Der Spielstand wurde in Downloads exportiert. Öffne danach OneDrive, tippe auf + und dann auf „Upload“, um die Datei aus Downloads hochzuladen.", { title: "Datei für OneDrive bereit", tone: "success", mark: "✓" });
+        showMessage("Dieser Browser kann die ausgewählte Datei nicht direkt überschreiben. Der Stand wurde als „" + exportName + "“ in Downloads exportiert. Für das Speichern in derselben OneDrive-Datei muss der Dateiauswahldialog deines Browsers OneDrive anbieten.", { title: "Nur Export verfügbar", tone: "warning" });
       }
     });
 
@@ -2015,13 +2087,12 @@
       const button = document.getElementById("btnSave");
       const label = button?.querySelector(".button-label");
       if (!button || !label || !/Android/i.test(navigator.userAgent)) return;
-      const canShareJson = Boolean(navigator.share && navigator.canShare && typeof File !== "undefined" &&
-        navigator.canShare({ files: [new File(["{}"], "phase10.json", { type: "application/json" })] }));
-      label.textContent = canShareJson ? "Teilen" : "Export";
-      button.setAttribute("aria-label", canShareJson ? "Spielstand über Android teilen" : "Spielstand herunterladen und manuell hochladen");
-      button.title = canShareJson
-        ? "Spielstand teilen; OneDrive ggf. anschließend über Upload verwenden"
-        : "Spielstand herunterladen; anschließend in OneDrive über Upload hochladen";
+      const canChooseSaveFile = Boolean(window.showSaveFilePicker);
+      label.textContent = canChooseSaveFile ? "Datei" : "Export";
+      button.setAttribute("aria-label", canChooseSaveFile ? "Spielstand in derselben Datei speichern" : "Spielstand herunterladen");
+      button.title = canChooseSaveFile
+        ? "Einmal Speicherort wählen; danach wird dieselbe Spielstandsdatei überschrieben"
+        : "Spielstand herunterladen; dieser Browser kann Dateien nicht direkt überschreiben";
     }
     configureSaveButtonForDevice();
 
@@ -2084,7 +2155,7 @@
           });
           const file = await handle.getFile();
           const text = await file.text();
-          if (await loadStateFromJSON(text)) fileHandle = handle;
+          await loadStateFromJSON(text, handle);
           return;
         } catch (err) {
           if (err.name === "AbortError") return;
@@ -2102,8 +2173,9 @@
       e.target.value = "";
     });
 
-    async function loadStateFromJSON(jsonText) {
+    async function loadStateFromJSON(jsonText, sourceFileHandle = null) {
       try {
+        await fileHandleReady;
         const loaded = JSON.parse(jsonText);
         if (!loaded || typeof loaded !== "object") throw new Error();
         const localRaw = localStorage.getItem(STORAGE_KEY);
@@ -2126,12 +2198,19 @@
         normalizePlayers();
         applyVariant(state.gameVariant || "classic");
         editingRoundIndex = null;
+        fileHandle = sourceFileHandle;
+        fileHandleGroupName = fileHandle ? (state.groupName || "") : null;
+        if (fileHandle) await writeSavedFileHandle(fileHandle, state.groupName);
+        else await clearSavedFileHandle();
         updateHeader();
         renderAll();
         saveAutoStorage();
         setView(state.started ? "view-scores" : "view-archive");
         setSaveStatus("Lokal gespeichert · OneDrive separat", "local");
-        showMessage(`Die Gruppe „${state.groupName || "Phase 10"}“ wurde geladen.`, { title: "Gruppe geladen", tone: "success", mark: "✓" });
+        showMessage(fileHandle
+          ? `Die Gruppe „${state.groupName || "Phase 10"}“ wurde aus „${fileHandle.name}“ geladen. Speichern überschreibt künftig diese Datei.`
+          : `Die Gruppe „${state.groupName || "Phase 10"}“ wurde geladen. Zum Speichern in derselben Datei den Speicherort einmal auswählen.`,
+          { title: "Gruppe geladen", tone: "success", mark: "✓" });
         return true;
       } catch (e) {
         showMessage("Die Datei ist ungültig oder konnte nicht gelesen werden.", { title: "Datei konnte nicht geladen werden", tone: "warning" });
@@ -2150,7 +2229,10 @@
           const dateStr = new Date().toISOString().slice(0, 10);
           downloadJSON({ ...state, _roundDraft: roundDraft }, group + "_VorNeueGruppe_" + dateStr + ".json");
         }
+        await fileHandleReady;
         fileHandle = null;
+        fileHandleGroupName = null;
+        await clearSavedFileHandle();
         roundDraft = null;
         state = defaultState();
         editingRoundIndex = null;
