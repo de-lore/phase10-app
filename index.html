@@ -242,8 +242,8 @@
       font-size: 0.88rem;
       padding: 3px 8px;
       border-radius: 999px;
-      background: color-mix(in srgb, var(--p-col) 15%, var(--surface));
-      border: 1px solid color-mix(in srgb, var(--p-col) 30%, var(--border));
+      background: color-mix(in srgb, var(--p-col) 24%, var(--surface));
+      border: 1px solid color-mix(in srgb, var(--p-col) 48%, var(--border));
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -271,8 +271,9 @@
       gap: 10px;
       padding: 10px 12px;
       border-radius: 14px;
-      background: color-mix(in srgb, var(--p-col) 5%, var(--surface));
-      border: 1px solid color-mix(in srgb, var(--p-col) 18%, var(--border));
+      background: color-mix(in srgb, var(--p-col) 10%, var(--surface));
+      border: 1px solid color-mix(in srgb, var(--p-col) 34%, var(--border));
+      border-inline-start: 5px solid var(--p-col);
       margin-bottom: 8px;
       transition: background-color 0.16s ease, border-color 0.16s ease;
     }
@@ -305,8 +306,9 @@
       margin: 12px 0;
     }
     .setup-box {
-      background: var(--surface-2);
-      border: 1px solid var(--border);
+      background: color-mix(in srgb, var(--p-col) 8%, var(--surface-2));
+      border: 1px solid color-mix(in srgb, var(--p-col) 28%, var(--border));
+      border-inline-start: 5px solid var(--p-col);
       border-radius: 12px;
       padding: 10px;
       display: grid;
@@ -365,8 +367,9 @@
       padding-bottom: 14px;
     }
     .player-card {
-      background: color-mix(in srgb, var(--p-col) 6%, var(--surface));
-      border: 1px solid color-mix(in srgb, var(--p-col) 20%, var(--border));
+      background: color-mix(in srgb, var(--p-col) 9%, var(--surface));
+      border: 1px solid color-mix(in srgb, var(--p-col) 32%, var(--border));
+      border-inline-start: 5px solid var(--p-col);
       border-radius: var(--radius-card);
       padding: 18px;
       display: flex;
@@ -388,13 +391,17 @@
       align-items: center;
       gap: 8px;
     }
-    .p-badge-full.done { background: var(--success-bg); border-color: var(--success); }
+    .p-badge-full.done { background: color-mix(in srgb, var(--p-col) 18%, var(--surface)); border-color: color-mix(in srgb, var(--p-col) 48%, var(--border)); }
     .p-badge-full .check-mark { font-weight: 900; font-size: 1rem; flex-shrink: 0; color: var(--muted); }
     .p-badge-full.done .check-mark { color: var(--success); }
     .p-tag { font-size: 0.8rem; font-weight: 700; color: var(--muted); flex-shrink: 0; min-width: 30px; }
     .p-badge-full.done .p-tag { color: var(--success); }
     .p-desc { font-size: 0.95rem; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
     .p-badge-full.done .p-desc { color: var(--success); font-weight: 800; }
+    .player-card-title { display: inline-flex; align-items: center; gap: 8px; padding: 5px 10px; border: 1px solid color-mix(in srgb, var(--p-col) 35%, var(--border)); border-radius: 12px; background: color-mix(in srgb, var(--p-col) 18%, var(--surface)); font-weight: 800; font-size: 1.05rem; min-width: 0; max-width: 100%; }
+    .player-color-dot { width: 11px; height: 11px; flex: 0 0 auto; border-radius: 50%; background: var(--p-col); box-shadow: 0 0 0 3px color-mix(in srgb, var(--p-col) 20%, transparent); }
+    .player-card-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .player-score-total { min-width: 54px; padding: 3px 9px; border: 1px solid color-mix(in srgb, var(--p-col) 38%, var(--border)); border-radius: 12px; background: color-mix(in srgb, var(--p-col) 18%, var(--surface)); color: var(--text); font-size: 1.55rem; font-weight: 850; text-align: center; }
     #view-scores .player-card { padding: 12px; }
     #view-scores .phase-full-list { gap: 3px; margin-top: 8px; }
     #view-scores .p-badge-full { min-height: 31px; padding: 5px 8px; gap: 6px; border-radius: 9px; line-height: 1.18; }
@@ -755,7 +762,7 @@
   </dialog>
 
   <script>
-    const APP_VERSION = "1.0";
+    const APP_VERSION = "1.1";
     document.getElementById("appVersion").textContent = `v${APP_VERSION}`;
     const appDialog = document.getElementById("appDialog");
     const appDialogTitle = document.getElementById("appDialogTitle");
@@ -1042,6 +1049,7 @@
       setupFormData.forEach((f, i) => {
         const box = document.createElement("div");
         box.className = "setup-box";
+        box.style.setProperty("--p-col", getPlayerColor(f.color));
         box.innerHTML = `
           <div class="setup-box-header">
             <strong>Platz ${i + 1}</strong>
@@ -1060,6 +1068,9 @@
           </label>
         `;
         setupPlayersGrid.appendChild(box);
+        box.querySelector(".s-col").addEventListener("change", (event) => {
+          box.style.setProperty("--p-col", getPlayerColor(event.target.value));
+        });
       });
     }
 
@@ -1534,15 +1545,16 @@
         <div class="player-card" style="--p-col:${getPlayerColor(p.color)};">
           <div style="display:flex; justify-content:space-between; align-items:start;">
             <div>
-              <div style="font-weight:700; font-size:1.15rem; display:flex; align-items:center; gap:8px;">
-                <span>${idx + 1}. ${p.name}</span>
+              <div class="player-card-title">
+                <span class="player-color-dot" aria-hidden="true"></span>
+                <span class="player-card-name">${idx + 1}. ${p.name}</span>
                 ${nextDealer && String(nextDealer.id) === String(p.id) ? `<span class="dealer-chip" title="Nächster Dealer">D</span>` : ""}
               </div>
               <div style="font-size:0.85rem; color:var(--muted); margin-top:2px;">
                 ${p.completedPhases.length} von 10 Phasen geschafft
               </div>
             </div>
-            <div style="font-size:1.8rem; font-weight:800;">${p.totalPoints}</div>
+            <div class="player-score-total">${p.totalPoints}</div>
           </div>
           <div class="phase-full-list">
             ${Object.keys(PHASES).map(Number).map(n => {
