@@ -709,7 +709,7 @@
           <div>
             <h2 style="margin:0; font-size:1.1rem;">Aktuelle Abend-Rangliste</h2>
             <div style="font-size:0.8rem; color:var(--muted); margin-top:2px;">
-              Rangsumme aller Spiele bestimmt den Platz. Kasse: Platz 1 = 0 €, jeder weitere Platz = 5 € mehr.
+              Die Rangsumme bestimmt den Platz. Bei Gleichstand teilen Spieler den Durchschnittsplatz; die Kasse wird gemittelt (Platz 1 = 0 €, je weiterer Platz +5 €).
             </div>
           </div>
           <button class="btn warn" id="btnArchiveEvening" style="display:none;">
@@ -786,7 +786,7 @@
   </dialog>
 
   <script>
-    const APP_VERSION = "1.4";
+    const APP_VERSION = "1.5";
     document.getElementById("appVersion").textContent = `v${APP_VERSION}`;
     const appDialog = document.getElementById("appDialog");
     const appDialogTitle = document.getElementById("appDialogTitle");
@@ -1276,7 +1276,7 @@
 
     function renderRoundView() {
       if (!state.started) return;
-      const winner = state.players.find(p => p.completedPhases.length === 10);
+      const winners = getGameRankingRows(state.players).filter(p => p.placement === 1);
       const banner = document.getElementById("roundFinishBanner");
       const card = document.getElementById("roundInputCard");
       const editNotice = document.getElementById("roundEditNotice");
@@ -1286,9 +1286,11 @@
       document.getElementById("curGameVariant").value = state.gameVariant;
       document.getElementById("curGameMode").value = state.phaseMode;
 
-      if (state.gameFinished && winner && editingRoundIndex === null) {
+      if (state.gameFinished && winners.length && editingRoundIndex === null) {
         banner.style.display = "block";
-        document.getElementById("finishWinnerText").textContent = `🎉 ${winner.name} hat alle 10 Phasen beendet!`;
+        document.getElementById("finishWinnerText").textContent = winners.length > 1
+          ? `🎉 ${winners.map(p => p.name).join(" und ")} teilen sich Platz 1!`
+          : `🎉 ${winners[0].name} hat alle 10 Phasen beendet!`;
         document.getElementById("nextGameVariant").value = state.gameVariant;
         document.getElementById("nextGameMode").value = state.phaseMode;
         card.style.display = "none";
@@ -1513,12 +1515,47 @@
       saveAutoStorage();
     });
 
+    function assignAveragePlacements(sortedRows, isTied) {
+      const rows = sortedRows.map(row => ({ ...row }));
+      for (let start = 0; start < rows.length;) {
+        let end = start + 1;
+        while (end < rows.length && isTied(rows[start], rows[end])) end++;
+        const averagePlace = ((start + 1) + end) / 2;
+        for (let i = start; i < end; i++) rows[i].placement = averagePlace;
+        start = end;
+      }
+      return rows;
+    }
+
+    function getGameRankingRows(players) {
+      const sorted = [...players].sort((a, b) => b.currentPhase - a.currentPhase || a.totalPoints - b.totalPoints);
+      return assignAveragePlacements(sorted, (a, b) => a.currentPhase === b.currentPhase && a.totalPoints === b.totalPoints);
+    }
+
+    function formatPlace(place) {
+      const value = Number(place);
+      return `${value.toLocaleString("de-DE", { maximumFractionDigits: 1 })}${Number.isInteger(value) ? "." : ""}`;
+    }
+
+    function formatEuro(amount) {
+      const value = Number(amount) || 0;
+      return value.toLocaleString("de-DE", { minimumFractionDigits: Number.isInteger(value) ? 0 : 2, maximumFractionDigits: 2 });
+    }
+
+    function getStoredGameRanking(ranking) {
+      if (!ranking?.length) return [];
+      const hasResultStats = ranking.every(r => Number.isFinite(Number(r.phase)) && Number.isFinite(Number(r.totalPoints)));
+      if (!hasResultStats) return ranking.map(r => ({ ...r, placement: Number(r.placement) || 1 }));
+      const sorted = [...ranking].sort((a, b) => Number(b.phase) - Number(a.phase) || Number(a.totalPoints) - Number(b.totalPoints));
+      return assignAveragePlacements(sorted, (a, b) => Number(a.phase) === Number(b.phase) && Number(a.totalPoints) === Number(b.totalPoints));
+    }
+
     function saveFinishedGame() {
-      const ranking = [...state.players].sort((a, b) => b.currentPhase - a.currentPhase || a.totalPoints - b.totalPoints);
-      const snapshot = ranking.map((p, idx) => ({
+      const ranking = getGameRankingRows(state.players);
+      const snapshot = ranking.map(p => ({
         name: p.name,
         color: p.color,
-        placement: idx + 1,
+        placement: p.placement,
         totalPoints: p.totalPoints,
         phase: p.currentPhase
       }));
@@ -1644,13 +1681,14 @@
       const rows = state.eveningPlayers.map(p => {
         const gScores = {};
         state.eveningSeries.forEach(g => {
-          const entry = g.ranking.find(r => r.name === p.name);
+          const entry = getStoredGameRanking(g.ranking).find(r => r.name === p.name);
           if (entry) gScores[g.game] = entry.placement;
         });
         const sum = Object.values(gScores).reduce((a,b) => a+b, 0);
         return { name: p.name, color: p.color, gScores, sum };
       });
-      return rows.sort((a,b) => a.sum - b.sum);
+      rows.sort((a,b) => a.sum - b.sum);
+      return assignAveragePlacements(rows, (a, b) => a.sum === b.sum);
     }
 
     function renderEvening() {
@@ -1670,13 +1708,13 @@
       }
 
       const rows = getEveningRankingRows();
-      document.getElementById("eveningTableBody").innerHTML = rows.map((r, idx) => `
+      document.getElementById("eveningTableBody").innerHTML = rows.map(r => `
         <tr>
-          <td><strong>${idx + 1}</strong></td>
+          <td><strong>${formatPlace(r.placement)}</strong></td>
           <td><span class="player-chip" style="--p-col:${getPlayerColor(r.color)};">${r.name}</span></td>
-          ${games.map(g => `<td>${r.gScores[g] ?? "–"}</td>`).join("")}
+          ${games.map(g => `<td>${r.gScores[g] === undefined ? "–" : formatPlace(r.gScores[g])}</td>`).join("")}
           <td><strong>${r.sum}</strong></td>
-          <td><strong title="Platz ${idx + 1}: ${idx} × 5 €">${idx} × 5 € = ${idx * 5} €</strong></td>
+          <td><strong title="Gemittelter Kassenbetrag für Platz ${formatPlace(r.placement)}">${formatEuro((r.placement - 1) * 5)} €</strong></td>
         </tr>
       `).join("");
     }
@@ -1698,12 +1736,12 @@
         id: "abend-" + Date.now(),
         date: `${dateStr} (${timeStr})`,
         gameCount: state.eveningSeries.length,
-        ranking: rows.map((r, idx) => ({
-          place: idx + 1,
+        ranking: rows.map(r => ({
+          place: r.placement,
           name: r.name,
           color: r.color,
           sumRank: r.sum,
-          cash: idx * 5
+          cash: (r.placement - 1) * 5
         }))
       };
 
@@ -1742,7 +1780,7 @@
           }
           stats[r.name].eveningsCount++;
           const place = Number(r.place || r.placement || 1);
-          if (place === 1) stats[r.name].wins++;
+          if (place < 2) stats[r.name].wins++;
           stats[r.name].totalGames += (eve.gameCount || 1);
           stats[r.name].rankSum += place;
           stats[r.name].cashSum += Number(r.cash !== undefined ? r.cash : (place - 1) * 5) || 0;
@@ -1801,10 +1839,10 @@
                   <tbody>
                     ${ranking.map(r => `
                       <tr>
-                        <td>${r.place || r.placement || 1}.</td>
+                        <td>${formatPlace(r.place || r.placement || 1)}</td>
                         <td><span class="player-chip" style="--p-col:${getPlayerColor(r.color)}; padding:2px 8px; font-size:0.75rem;">${r.name}</span></td>
                         <td>${r.sumRank || r.totalRank || '–'}</td>
-                        <td><strong>${r.cash !== undefined ? r.cash : ((r.place || 1) - 1) * 5} €</strong></td>
+                        <td><strong>${formatEuro(r.cash !== undefined ? r.cash : ((r.place || 1) - 1) * 5)} €</strong></td>
                       </tr>
                     `).join("")}
                   </tbody>
