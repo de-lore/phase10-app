@@ -415,6 +415,12 @@
     #scoresGrid[data-player-count="4"] .p-badge-full { min-height: 35px; padding: 7px 9px; }
     #scoresGrid[data-player-count="4"] .p-tag { font-size: 0.78rem; }
     #scoresGrid[data-player-count="4"] .p-desc { font-size: 0.92rem; line-height: 1.24; }
+    #scoresGrid[data-player-count="4"] {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      overflow: visible;
+      padding-bottom: 0;
+    }
+    #scoresGrid[data-player-count="4"] .player-card { min-width: 0; }
     #scoresGrid[data-player-count="5"], #scoresGrid[data-player-count="6"] { gap: 9px; }
     #scoresGrid[data-player-count="5"] .player-card,
     #scoresGrid[data-player-count="6"] .player-card { padding: 10px; }
@@ -450,6 +456,7 @@
       .round-player-info { grid-column: 1 / -1; }
       .nav-tab { min-width: 56px; gap: 3px; font-size: 0.75rem; }
       .nav-tab-icon { width: 16px; height: 16px; }
+      #scoresGrid[data-player-count="4"] { grid-template-columns: minmax(0, 1fr); }
     }
     @media (max-height: 720px) {
       #view-scores .card { padding: 10px; }
@@ -778,7 +785,7 @@
   </dialog>
 
   <script>
-    const APP_VERSION = "1.2";
+    const APP_VERSION = "1.3";
     document.getElementById("appVersion").textContent = `v${APP_VERSION}`;
     const appDialog = document.getElementById("appDialog");
     const appDialogTitle = document.getElementById("appDialogTitle");
