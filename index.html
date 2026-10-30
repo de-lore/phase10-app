@@ -819,7 +819,7 @@
   </dialog>
 
   <script>
-    const APP_VERSION = "1.10";
+    const APP_VERSION = "1.11";
     document.getElementById("appVersion").textContent = `v${APP_VERSION}`;
     const appDialog = document.getElementById("appDialog");
     const appDialogTitle = document.getElementById("appDialogTitle");
@@ -1964,7 +1964,8 @@
       const groupName = (state.groupName || "Phase10").replace(/[^a-z0-9_-]/gi, "_");
       const dateStr = new Date().toISOString().slice(0, 10);
       const exportName = groupName + "_" + dateStr + ".json";
-      if (window.showSaveFilePicker) {
+      const isAndroidDevice = /Android/i.test(navigator.userAgent);
+      if (window.showSaveFilePicker && !isAndroidDevice) {
         try {
           if (!fileHandle) {
             fileHandle = await window.showSaveFilePicker({
@@ -2005,7 +2006,24 @@
       a.download = exportName;
       a.click();
       setSaveStatus("Lokal gespeichert · Backup heruntergeladen", "backup");
+      if (isAndroidDevice) {
+        showMessage("Der Spielstand wurde in Downloads exportiert. Öffne danach OneDrive, tippe auf + und dann auf „Upload“, um die Datei aus Downloads hochzuladen.", { title: "Datei für OneDrive bereit", tone: "success", mark: "✓" });
+      }
     });
+
+    function configureSaveButtonForDevice() {
+      const button = document.getElementById("btnSave");
+      const label = button?.querySelector(".button-label");
+      if (!button || !label || !/Android/i.test(navigator.userAgent)) return;
+      const canShareJson = Boolean(navigator.share && navigator.canShare && typeof File !== "undefined" &&
+        navigator.canShare({ files: [new File(["{}"], "phase10.json", { type: "application/json" })] }));
+      label.textContent = canShareJson ? "Teilen" : "Export";
+      button.setAttribute("aria-label", canShareJson ? "Spielstand über Android teilen" : "Spielstand herunterladen und manuell hochladen");
+      button.title = canShareJson
+        ? "Spielstand teilen; OneDrive ggf. anschließend über Upload verwenden"
+        : "Spielstand herunterladen; anschließend in OneDrive über Upload hochladen";
+    }
+    configureSaveButtonForDevice();
 
     document.getElementById("btnBackup").addEventListener("click", () => {
       if (!state.started && !state.archivedEvenings.length) return showMessage("Es gibt keine aktive Gruppe und kein Archiv für ein Backup.", { title: "Nichts zu sichern", tone: "warning" });
