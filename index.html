@@ -703,7 +703,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "0.9";
+    const APP_VERSION = "0.10";
     document.getElementById("appVersion").textContent = `v${APP_VERSION}`;
     const PHASES_CLASSIC = {
       1: "2 Drillinge", 2: "1 Drilling + 1 Viererfolge", 3: "1 Vierling + 1 Viererfolge",
@@ -853,7 +853,18 @@
         t.classList.toggle("active", active);
         t.setAttribute("aria-pressed", String(active));
       });
+      if (id === "view-round" || id === "view-scores") appMain.scrollTop = 0;
       setHeaderCollapsed(id === "view-scores");
+      if (id === "view-round") {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const firstPhaseField = document.querySelector("#view-round .r-phase");
+            if (firstPhaseField && firstPhaseField.offsetParent !== null) {
+              firstPhaseField.focus({ preventScroll: true });
+            }
+          });
+        });
+      }
     }
 
     appMain.addEventListener("scroll", () => {
@@ -1204,7 +1215,7 @@
                 ${isWinner ? "★ Rundensieger" : `Vorher: P${pBefore.currentPhase} •${pBefore.totalPoints}P`}
               </span>
             </div>
-            <select class="select r-phase" data-id="${p.id}">
+            <select class="select r-phase" data-id="${p.id}" aria-label="Erreichte Phase für ${p.name}">
               ${opts}
             </select>
             <input class="input r-points" data-id="${p.id}" type="number" min="0" step="5" placeholder="Pkt" value="${currentPoints}">
