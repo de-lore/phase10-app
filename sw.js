@@ -1,4 +1,4 @@
-const CACHE_NAME = "phase10-app-cache-v1.121";
+const CACHE_NAME = "phase10-app-cache-v1.13";
 const ASSETS = [
   "./",
   "./index.html",

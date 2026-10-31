@@ -819,7 +819,7 @@
   </dialog>
 
   <script>
-    const APP_VERSION = "1.12";
+    const APP_VERSION = "1.13";
     document.getElementById("appVersion").textContent = `v${APP_VERSION}`;
     const appDialog = document.getElementById("appDialog");
     const appDialogTitle = document.getElementById("appDialogTitle");
@@ -1726,7 +1726,7 @@
                 ${p.completedPhases.length} von 10 Phasen geschafft
               </div>
               <div class="player-round-stats" style="font-size:0.78rem; color:var(--muted); margin-top:3px;">
-                ${state.rounds.length} ${state.rounds.length === 1 ? "Runde gespielt" : "Runden gespielt"} · ${state.rounds.filter(r => r.entries?.some(e => String(e.playerId) === String(p.id) && e.points === 0)).length} gewonnen
+                Runden: gespielt ${state.rounds.length} · gewonnen ${state.rounds.filter(r => r.entries?.some(e => String(e.playerId) === String(p.id) && e.points === 0)).length}
               </div>
             </div>
             <div class="player-score-total">${p.totalPoints}</div>
