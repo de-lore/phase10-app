@@ -1534,9 +1534,6 @@
         return showMessage("Genau ein Spieler muss 0 Punkte haben und damit Rundensieger sein.", { title: "Rundensieger prüfen", tone: "warning" });
       }
 
-      const review = entries.map(e => `${e.name}: ${e.phase > 0 ? `Phase ${e.phase} geschafft` : "keine Phase"}, ${e.points} Punkte${e.points === 0 ? " (Rundensieger)" : ""}`).join("\n");
-      if (!await showConfirm(`Bitte prüfe die Eingaben:\n\n${review}`, { title: editingRoundIndex !== null ? "Korrektur speichern?" : "Runde werten?", confirmLabel: editingRoundIndex !== null ? "Speichern" : "Runde werten" })) return;
-
       if (editingRoundIndex !== null) {
         state.rounds[editingRoundIndex].entries = entries;
         rebuildStateFromRounds();
@@ -1727,6 +1724,9 @@
               </div>
               <div style="font-size:0.85rem; color:var(--muted); margin-top:2px;">
                 ${p.completedPhases.length} von 10 Phasen geschafft
+              </div>
+              <div class="player-round-stats" style="font-size:0.78rem; color:var(--muted); margin-top:3px;">
+                ${state.rounds.length} ${state.rounds.length === 1 ? "Runde gespielt" : "Runden gespielt"} · ${state.rounds.filter(r => r.entries?.some(e => String(e.playerId) === String(p.id) && e.points === 0)).length} gewonnen
               </div>
             </div>
             <div class="player-score-total">${p.totalPoints}</div>
