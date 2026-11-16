@@ -599,7 +599,7 @@
       <button class="btn-icon primary" id="btnInstall" aria-label="App installieren" title="App installieren" style="display:none;"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="2"/><path d="M10 18.5h4M9 6h6"/></svg><span class="button-label">App</span></button>
       <input type="file" id="filePicker" class="file-input" accept=".json">
       <button class="btn-icon" id="btnOpenSeats" aria-label="Sitzordnung und Start-Dealer anpassen" title="Sitzordnung & Start-Dealer anpassen"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1a1.8 1.8 0 0 1-2.5 2.5l-.1-.1a1.8 1.8 0 0 0-3 .9v.2a1.8 1.8 0 0 1-3.6 0v-.2a1.8 1.8 0 0 0-3-.9l-.1.1a1.8 1.8 0 0 1-2.5-2.5l.1-.1a1.8 1.8 0 0 0-.9-3h-.2a1.8 1.8 0 0 1 0-3.6h.2a1.8 1.8 0 0 0 .9-3l-.1-.1a1.8 1.8 0 0 1 2.5-2.5l.1.1a1.8 1.8 0 0 0 3-.9v-.2a1.8 1.8 0 0 1 3.6 0v.2a1.8 1.8 0 0 0 3 .9l.1-.1a1.8 1.8 0 0 1 2.5 2.5l-.1.1a1.8 1.8 0 0 0 .9 3h.2a1.8 1.8 0 0 1 0 3.6h-.2a1.8 1.8 0 0 0-.9 3Z"/></svg><span class="button-label">Sitze</span></button>
-      <button class="btn-icon primary" id="btnSave" aria-label="Spielstand in OneDrive speichern oder teilen" title="Spielstand in OneDrive speichern oder an eine App weitergeben"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 16.5a4 4 0 0 0-.8-7.9A6 6 0 0 0 7.7 7a4.5 4.5 0 0 0 .8 9.5H20Z"/></svg><span class="button-label">OneDrive</span></button>
+      <button class="btn-icon primary" id="btnSave" aria-label="Aktuelle Gruppe speichern" title="Aktuelle Gruppe speichern; wenn die Datei nicht beschreibbar ist, wird lokal gesichert"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h12l4 4v14H3V3h2Z"/><path d="M7 3v6h10V3M7 21v-7h10v7"/><path d="M16 3v3"/></svg><span class="button-label">Speichern</span></button>
       <button class="btn-icon primary" id="btnUpdate" aria-label="App aktualisieren" style="display:none;" title="Aktualisierte App laden"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 9a7 7 0 0 1 11.6-2L20 12M4 12l2.3 5a7 7 0 0 0 11.6-2"/></svg><span class="button-label">Update</span></button>
       <div class="more-menu-wrap">
         <button class="btn-icon" id="btnMoreMenu" title="Weitere Aktionen" aria-label="Weitere Aktionen" aria-haspopup="true" aria-expanded="false" aria-controls="moreMenu"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></button>
@@ -838,7 +838,7 @@
   </dialog>
 
   <script>
-    const APP_VERSION = "1.16";
+    const APP_VERSION = "1.17";
     document.getElementById("appVersion").textContent = `v${APP_VERSION}`;
     const appDialog = document.getElementById("appDialog");
     const appDialogTitle = document.getElementById("appDialogTitle");
@@ -2211,13 +2211,10 @@
     function configureSaveButtonForDevice() {
       const button = document.getElementById("btnSave");
       const label = button?.querySelector(".button-label");
-      if (!button || !label || !/Android/i.test(navigator.userAgent)) return;
-      const canChooseSaveFile = Boolean(window.showSaveFilePicker);
-      label.textContent = canChooseSaveFile ? "Datei" : "Export";
-      button.setAttribute("aria-label", canChooseSaveFile ? "Spielstand in derselben Datei speichern" : "Spielstand herunterladen");
-      button.title = canChooseSaveFile
-        ? "Einmal Speicherort wählen; danach wird dieselbe Spielstandsdatei überschrieben"
-        : "Spielstand herunterladen; dieser Browser kann Dateien nicht direkt überschreiben";
+      if (!button || !label) return;
+      label.textContent = "Speichern";
+      button.setAttribute("aria-label", "Aktuelle Gruppe speichern");
+      button.title = "Aktuelle Gruppe speichern; wenn die Datei nicht beschreibbar ist, wird lokal gesichert";
     }
     configureSaveButtonForDevice();
 
