@@ -106,6 +106,8 @@
     .more-menu {
       position: absolute;
       top: calc(100% + 8px);
+      max-height: calc(100dvh - 90px);
+      overflow-y: auto;
       right: 0;
       min-width: 180px;
       padding: 6px;
@@ -567,6 +569,10 @@
     .app-dialog-message { margin: 10px 0 22px; color: var(--muted); font-size: 0.94rem; line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; max-height: min(52vh, 420px); overflow-y: auto; }
     .app-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
     .app-dialog-actions .btn { min-width: 92px; min-height: 44px; }
+    .group-switch-list { display:grid; gap:8px; max-height:min(52vh, 440px); overflow-y:auto; margin:16px 0; }
+    .group-switch-item { width:100%; min-height:58px; padding:10px 12px; display:flex; flex-direction:column; align-items:flex-start; gap:3px; border:1px solid var(--border); border-radius:12px; background:var(--surface); color:var(--text); text-align:left; cursor:pointer; }
+    .group-switch-item:hover, .group-switch-item:focus-visible { border-color:var(--primary); outline:2px solid color-mix(in srgb, var(--primary) 24%, transparent); }
+    .group-switch-meta { color:var(--muted); font-size:.78rem; }
     @media (max-width: 480px) {
       .app-dialog { width: calc(100vw - 28px); }
       .app-dialog-card { padding: 20px; border-radius: 22px; }
@@ -595,6 +601,7 @@
       <div class="more-menu-wrap">
         <button class="btn-icon" id="btnMoreMenu" title="Weitere Aktionen" aria-label="Weitere Aktionen" aria-haspopup="true" aria-expanded="false" aria-controls="moreMenu"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></button>
         <div class="more-menu" id="moreMenu" hidden>
+          <button class="btn-icon" id="btnSwitchGroup" title="Zu einer bekannten Gruppe wechseln"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10a4 4 0 0 1 0 8H8"/><path d="m8 11-4 4 4 4M20 17H10a4 4 0 0 1 0-8h6"/><path d="m16 5 4 4-4 4"/></svg><span class="button-label">Gruppe wechseln</span></button>
           <button class="btn-icon" id="btnLoad" title="Gruppe aus JSON-Datei laden"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5h6l2 2h9v10h-17z"/><path d="M12 11v5m-2-2 2 2 2-2"/></svg><span class="button-label">Gruppe laden</span></button>
           <button class="btn-icon" id="btnBackup" title="Spielstand als JSON-Backup herunterladen"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 17v3h16v-3"/></svg><span class="button-label">Backup Export</span></button>
           <button class="btn-icon" id="btnNew" title="Neue Gruppe anlegen"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8m-4-4h8"/></svg><span class="button-label">Neue Gruppe</span></button>
@@ -806,6 +813,15 @@
     </div>
   </div>
 
+  <dialog class="app-dialog" id="groupSwitchDialog" aria-labelledby="groupSwitchTitle">
+    <div class="app-dialog-card">
+      <div class="app-dialog-mark" aria-hidden="true">↔</div>
+      <h2 class="app-dialog-title" id="groupSwitchTitle">Gruppe wechseln</h2>
+      <p class="app-dialog-message">Wähle eine bereits geladene oder gespeicherte Gruppe.</p>
+      <div class="group-switch-list" id="groupSwitchList"></div>
+      <div class="app-dialog-actions"><button class="btn ghost" id="groupSwitchCancel" type="button">Schließen</button></div>
+    </div>
+  </dialog>
   <dialog class="app-dialog" id="appDialog" aria-labelledby="appDialogTitle" aria-describedby="appDialogMessage">
     <div class="app-dialog-card">
       <div class="app-dialog-mark" id="appDialogMark" aria-hidden="true">i</div>
@@ -819,7 +835,7 @@
   </dialog>
 
   <script>
-    const APP_VERSION = "1.13";
+    const APP_VERSION = "1.14";
     document.getElementById("appVersion").textContent = `v${APP_VERSION}`;
     const appDialog = document.getElementById("appDialog");
     const appDialogTitle = document.getElementById("appDialogTitle");
@@ -895,11 +911,20 @@
       braun: { label: "Braun", css: "var(--p-braun)" },
       grau: { label: "Grau", css: "var(--p-grau)" }
     };
+    function createGroupId() {
+      return crypto.randomUUID ? crypto.randomUUID() : "group-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+    }
+
+    function hasGroupData(data = state) {
+      return Boolean(data && (data.groupName || data.started || data.players?.length || data.eveningPlayers?.length || data.archivedEvenings?.length));
+    }
+
     const COLOR_KEYS = Object.keys(COLORS);
     const STORAGE_KEY = "phase10_pwa_session_v3";
 
     const defaultState = () => ({
       groupName: "",
+      groupId: "",
       playerCount: 4,
       gameVariant: "classic",
       phaseMode: "sequential",
@@ -918,7 +943,9 @@
     let state = defaultState();
     let roundDraft = null;
     let fileHandle = null;
-    let fileHandleGroupName = null;
+    let fileHandleGroupId = null;
+    const fileHandlesByGroup = new Map();
+    const groupRecords = new Map();
     const FILE_HANDLE_DB = "phase10-file-handles";
     const FILE_HANDLE_STORE = "saved-files";
 
@@ -932,30 +959,45 @@
       });
     }
 
-    async function readSavedFileHandle() {
+    let legacyFileRecord = null;
+    async function readSavedGroups() {
       try {
         const db = await openFileHandleDB();
-        return await new Promise((resolve, reject) => {
-          const request = db.transaction(FILE_HANDLE_STORE, "readonly").objectStore(FILE_HANDLE_STORE).get("active");
+        const [records, keys] = await new Promise((resolve, reject) => {
+          const tx = db.transaction(FILE_HANDLE_STORE, "readonly");
+          const store = tx.objectStore(FILE_HANDLE_STORE);
+          const valuesRequest = store.getAll();
+          const keysRequest = store.getAllKeys();
+          tx.oncomplete = () => resolve([valuesRequest.result || [], keysRequest.result || []]);
+          tx.onerror = () => reject(tx.error);
+        });
+        db.close();
+        records.forEach((record, index) => {
+          if (keys[index] === "active") legacyFileRecord = record;
+          if (!record?.groupId) return;
+          groupRecords.set(record.groupId, record);
+          if (record.handle) fileHandlesByGroup.set(record.groupId, record.handle);
+        });
+        return records;
+      } catch (e) { return []; }
+    }
+
+    async function writeGroupRecord(groupId, update) {
+      if (!groupId) return;
+      try {
+        const db = await openFileHandleDB();
+        await new Promise((resolve, reject) => {
+          const tx = db.transaction(FILE_HANDLE_STORE, "readwrite");
+          const store = tx.objectStore(FILE_HANDLE_STORE);
+          const key = "group:" + groupId;
+          const request = store.get(key);
           request.onsuccess = () => {
-            const saved = request.result;
-            if (saved?.handle) {
-              fileHandleGroupName = saved.groupName || null;
-              resolve(saved.handle);
-            } else resolve(null);
+            const previous = request.result || groupRecords.get(groupId) || {};
+            const record = { ...previous, ...update, groupId };
+            store.put(record, key);
+            groupRecords.set(groupId, record);
+            if (record.handle) fileHandlesByGroup.set(groupId, record.handle);
           };
-          request.onerror = () => reject(request.error);
-          db.close();
-        });
-      } catch (e) { return null; }
-    }
-
-    async function writeSavedFileHandle(handle, groupName = state.groupName) {
-      try {
-        const db = await openFileHandleDB();
-        await new Promise((resolve, reject) => {
-          const tx = db.transaction(FILE_HANDLE_STORE, "readwrite");
-          tx.objectStore(FILE_HANDLE_STORE).put({ handle, groupName: groupName || "" }, "active");
           tx.oncomplete = resolve;
           tx.onerror = () => reject(tx.error);
           tx.onabort = () => reject(tx.error);
@@ -964,33 +1006,51 @@
       } catch (e) {}
     }
 
-    async function clearSavedFileHandle() {
-      try {
-        const db = await openFileHandleDB();
-        await new Promise((resolve, reject) => {
-          const tx = db.transaction(FILE_HANDLE_STORE, "readwrite");
-          tx.objectStore(FILE_HANDLE_STORE).delete("active");
-          tx.oncomplete = resolve;
-          tx.onerror = () => reject(tx.error);
-          tx.onabort = () => reject(tx.error);
-        });
-        db.close();
-      } catch (e) {}
+    async function writeSavedFileHandle(handle, groupName = state.groupName, groupId = state.groupId) {
+      if (!handle || !groupId) return;
+      fileHandlesByGroup.set(groupId, handle);
+      fileHandle = handle;
+      fileHandleGroupId = groupId;
+      await writeGroupRecord(groupId, { handle, groupName: groupName || "", updatedAt: Date.now() });
+    }
+
+    async function clearSavedFileHandle(groupId = state.groupId) {
+      if (!groupId) return;
+      fileHandlesByGroup.delete(groupId);
+      if (fileHandleGroupId === groupId) { fileHandle = null; fileHandleGroupId = null; }
+      await writeGroupRecord(groupId, { handle: null });
     }
 
     async function hasFileWritePermission(handle) {
       if (!handle.queryPermission) return true;
       let permission = await handle.queryPermission({ mode: "readwrite" });
-      if (permission !== "granted" && handle.requestPermission) {
-        permission = await handle.requestPermission({ mode: "readwrite" });
-      }
+      if (permission !== "granted" && handle.requestPermission) permission = await handle.requestPermission({ mode: "readwrite" });
       return permission === "granted";
     }
 
-    const fileHandleReady = readSavedFileHandle().then(savedHandle => {
-      fileHandle = savedHandle;
-      return savedHandle;
-    });
+    async function syncActiveFileHandle() {
+      await fileHandleReady;
+      fileHandle = state.groupId ? fileHandlesByGroup.get(state.groupId) || null : null;
+      fileHandleGroupId = fileHandle ? state.groupId : null;
+      if (!fileHandle && state.groupName) {
+        const legacy = legacyFileRecord?.handle && legacyFileRecord.groupName === state.groupName ? legacyFileRecord : null;
+        if (legacy) await writeSavedFileHandle(legacy.handle, state.groupName, state.groupId);
+      }
+      return fileHandle;
+    }
+
+    async function findOtherGroupUsingFile(handle, groupId) {
+      if (!handle?.isSameEntry) return null;
+      for (const [otherId, otherHandle] of fileHandlesByGroup) {
+        if (otherId === groupId) continue;
+        try {
+          if (await handle.isSameEntry(otherHandle)) return groupRecords.get(otherId)?.groupName || "andere Gruppe";
+        } catch (e) {}
+      }
+      return null;
+    }
+
+    const fileHandleReady = readSavedGroups();
     const saveFileButton = document.getElementById("btnSave");
     if (saveFileButton) {
       saveFileButton.disabled = true;
@@ -1034,7 +1094,8 @@
         }
         const storedState = { ...state, _roundDraft: roundDraft };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(storedState));
-        setSaveStatus("Lokal gespeichert · OneDrive separat", "local");
+        if (hasGroupData(state) && state.groupId) pendingGroupWrite = writeGroupRecord(state.groupId, { groupName: state.groupName || "Unbenannte Gruppe", snapshot: storedState, updatedAt: Date.now() });
+        setSaveStatus("Lokal gespeichert · Gruppe gesichert", "local");
       } catch (e) {
         setSaveStatus("Lokale Speicherung fehlgeschlagen", "error");
       }
@@ -1049,6 +1110,7 @@
         roundDraft = loaded._roundDraft || null;
         delete loaded._roundDraft;
         state = Object.assign(defaultState(), loaded);
+        if (hasGroupData(state) && !state.groupId) state.groupId = createGroupId();
         if (!Array.isArray(state.archivedEvenings)) state.archivedEvenings = [];
         state.dealerOffset = Number(state.dealerOffset) || 0;
         normalizePlayers();
@@ -1234,6 +1296,7 @@
       if (names.some(n => !n)) return showMessage("Bitte alle Spielernamen eintragen.", { title: "Spielernamen fehlen", tone: "warning" });
 
       state.groupName = document.getElementById("setupGroupName").value.trim() || "Phase 10";
+      if (!state.groupId) state.groupId = createGroupId();
       state.playerCount = count;
       state.dealerOffset = dealerIdx >= 0 ? dealerIdx : 0;
       applyVariant(document.getElementById("setupVariant").value);
@@ -2033,54 +2096,70 @@
       renderArchiveView();
     }
 
-    // Direct OneDrive File Access
-    document.getElementById("btnSave").addEventListener("click", async () => {
-      if (!state.started && !state.archivedEvenings.length) {
-        return showMessage("Es gibt keine aktive Gruppe und kein Archiv zum Speichern.", { title: "Nichts zu speichern", tone: "warning" });
-      }
-      const dataStr = JSON.stringify({ ...state, _roundDraft: roundDraft }, null, 2);
-      const groupName = (state.groupName || "Phase10").replace(/[^a-z0-9_-]/gi, "_");
-      const exportName = groupName + "_Spielstand.json";
-      const isAndroidDevice = /Android/i.test(navigator.userAgent);
-      if (window.showSaveFilePicker) {
-        try {
-          if (fileHandle && fileHandleGroupName && fileHandleGroupName !== state.groupName) {
-            fileHandle = null;
-            fileHandleGroupName = null;
-            await clearSavedFileHandle();
-          }
-          if (fileHandle && !await hasFileWritePermission(fileHandle)) {
-            fileHandle = null;
-            fileHandleGroupName = null;
-            await clearSavedFileHandle();
-          }
-          if (!fileHandle) {
-            fileHandle = await window.showSaveFilePicker({
-              suggestedName: exportName,
-              types: [{ description: "JSON Datei", accept: { "application/json": [".json"] } }]
-            });
-            fileHandleGroupName = state.groupName || "";
-          }
-          const writable = await fileHandle.createWritable();
+    let pendingGroupWrite = Promise.resolve();
+    let lastSaveWasLocalOnly = false;
+    async function saveCurrentGroupBeforeLeaving(showSuccess = false) {
+      lastSaveWasLocalOnly = false;
+      await fileHandleReady;
+      if (!hasGroupData(state)) return true;
+      if (!state.groupId) state.groupId = createGroupId();
+      const data = { ...state, _roundDraft: roundDraft };
+      const dataStr = JSON.stringify(data, null, 2);
+      await pendingGroupWrite;
+      let handle = fileHandlesByGroup.get(state.groupId) || null;
+      if (!handle) await syncActiveFileHandle().catch(() => null);
+      handle = fileHandlesByGroup.get(state.groupId) || null;
+      try {
+        if (handle && await hasFileWritePermission(handle)) {
+          const writable = await handle.createWritable();
           await writable.write(dataStr);
           await writable.close();
-          await writeSavedFileHandle(fileHandle, state.groupName);
-          setSaveStatus("Datei gespeichert · " + fileHandle.name, "backup");
-          showMessage("Der Spielstand wurde in „" + fileHandle.name + "“ gespeichert. Weitere Speicherungen überschreiben dieselbe Datei.", { title: "Spielstand gespeichert", tone: "success", mark: "✓" });
-          return;
-        } catch (err) {
-          if (err.name === "AbortError") return;
+          await writeSavedFileHandle(handle, state.groupName, state.groupId);
+          await writeGroupRecord(state.groupId, { groupName: state.groupName || "Unbenannte Gruppe", snapshot: data, updatedAt: Date.now() });
+          setSaveStatus("Datei gespeichert · " + handle.name, "backup");
+          if (showSuccess) showMessage("„" + (state.groupName || handle.name) + "“ wurde in der zugeordneten Datei gespeichert.", { title: "Gruppe gespeichert", tone: "success", mark: "✓" });
+          return true;
+        }
+      } catch (error) {
+        if (error.name === "AbortError") return false;
+      }
+      if (window.showSaveFilePicker) {
+        try {
+          const safeName = (state.groupName || "Phase10").replace(/[^a-z0-9_-]/gi, "_");
+          handle = await window.showSaveFilePicker({
+            suggestedName: safeName + "_Spielstand.json",
+            types: [{ description: "JSON Datei", accept: { "application/json": [".json"] } }]
+          });
+          const otherGroupName = await findOtherGroupUsingFile(handle, state.groupId);
+          if (otherGroupName) {
+            await writeGroupRecord(state.groupId, { groupName: state.groupName || "Unbenannte Gruppe", snapshot: data, updatedAt: Date.now() });
+            lastSaveWasLocalOnly = true;
+            setSaveStatus("Gruppe lokal auf diesem Gerät gesichert", "local");
+            if (showSuccess) showMessage("Diese Datei ist bereits der Gruppe „" + otherGroupName + "“ zugeordnet. Wähle für jede Gruppe eine eigene Datei. Diese Gruppe wurde lokal gesichert.", { title: "Datei bereits zugeordnet", tone: "warning" });
+            return true;
+          }
+          const writable = await handle.createWritable();
+          await writable.write(dataStr);
+          await writable.close();
+          await writeSavedFileHandle(handle, state.groupName, state.groupId);
+          await writeGroupRecord(state.groupId, { groupName: state.groupName || "Unbenannte Gruppe", snapshot: data, updatedAt: Date.now() });
+          setSaveStatus("Datei gespeichert · " + handle.name, "backup");
+          if (showSuccess) showMessage("„" + (state.groupName || handle.name) + "“ ist jetzt dieser Datei zugeordnet.", { title: "Gruppe gespeichert", tone: "success", mark: "✓" });
+          return true;
+        } catch (error) {
+          if (error.name === "AbortError") return false;
         }
       }
-      const blob = new Blob([dataStr], { type: "application/json" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = exportName;
-      a.click();
-      setSaveStatus("Lokal gespeichert · Backup heruntergeladen", "backup");
-      if (isAndroidDevice) {
-        showMessage("Dieser Browser kann die ausgewählte Datei nicht direkt überschreiben. Der Stand wurde als „" + exportName + "“ in Downloads exportiert. Für das Speichern in derselben OneDrive-Datei muss der Dateiauswahldialog deines Browsers OneDrive anbieten.", { title: "Nur Export verfügbar", tone: "warning" });
-      }
+      await writeGroupRecord(state.groupId, { groupName: state.groupName || "Unbenannte Gruppe", snapshot: data, updatedAt: Date.now() });
+      lastSaveWasLocalOnly = true;
+      setSaveStatus("Gruppe lokal auf diesem Gerät gesichert", "local");
+      if (showSuccess) showMessage("Dieser Browser konnte die zugeordnete Datei nicht aktualisieren. Die Gruppe wurde auf diesem Gerät gesichert und kann über „Gruppe wechseln“ wieder geöffnet werden.", { title: "Nur lokal gesichert", tone: "warning" });
+      return true;
+    }
+
+    document.getElementById("btnSave").addEventListener("click", async () => {
+      if (!hasGroupData(state)) return showMessage("Es gibt keine aktive Gruppe zum Speichern.", { title: "Nichts zu speichern", tone: "warning" });
+      await saveCurrentGroupBeforeLeaving(true);
     });
 
     function configureSaveButtonForDevice() {
@@ -2173,44 +2252,44 @@
       e.target.value = "";
     });
 
-    async function loadStateFromJSON(jsonText, sourceFileHandle = null) {
+    async function loadStateFromJSON(jsonText, sourceFileHandle = null, loadedFromLocalSnapshot = false) {
       try {
         await fileHandleReady;
-        const loaded = JSON.parse(jsonText);
-        if (!loaded || typeof loaded !== "object") throw new Error();
-        const localRaw = localStorage.getItem(STORAGE_KEY);
-        const localState = localRaw ? JSON.parse(localRaw) : null;
-        const hasLocalGame = localState && (localState.started || localState.players?.length || localState.archivedEvenings?.length);
-        const hasDifference = hasLocalGame && stableStringify(comparableGameData(localState)) !== stableStringify(comparableGameData(loaded));
-        if (hasDifference) {
-          const message = `Der lokale Spielstand weicht von der Datei ab.\n\nLokal: ${describeGameData(localState)}\nDatei: ${describeGameData(loaded)}\n\nDu kannst zuerst ein Backup des lokalen Stands erstellen. Abbrechen lässt alles unverändert.`;
-          if (!await showConfirm(message, { title: "Spielstände unterscheiden sich", confirmLabel: "Backup erstellen" })) return false;
-          const group = (localState.groupName || "Phase10").replace(/[^a-z0-9_-]/gi, "_");
-          const dateStr = new Date().toISOString().slice(0, 10);
-          downloadJSON(localState, `${group}_VorImport_${dateStr}.json`);
-          if (!await showConfirm("Das Backup wurde zum Download bereitgestellt. Möchtest du jetzt die ausgewählte Datei laden und den lokalen Spielstand ersetzen?", { title: "Datei jetzt laden?", confirmLabel: "Datei laden", destructive: true })) return false;
+        let loaded = JSON.parse(jsonText);
+        if (!loaded || typeof loaded !== "object") throw new Error("Ungültiger Spielstand");
+        const currentHandle = await syncActiveFileHandle();
+        let sameFile = false;
+        if (sourceFileHandle && currentHandle && sourceFileHandle.isSameEntry) {
+          try { sameFile = await sourceFileHandle.isSameEntry(currentHandle); } catch (e) {}
+        }
+        let previousGroupLocalOnly = false;
+        if (hasGroupData(state)) {
+          const saved = await saveCurrentGroupBeforeLeaving(false);
+          if (!saved) return false;
+          previousGroupLocalOnly = lastSaveWasLocalOnly;
+          if (sameFile) loaded = JSON.parse(await (await sourceFileHandle.getFile()).text());
         }
         roundDraft = loaded._roundDraft || null;
         delete loaded._roundDraft;
         state = Object.assign(defaultState(), loaded);
+        if (!state.groupId) state.groupId = createGroupId();
         if (!Array.isArray(state.archivedEvenings)) state.archivedEvenings = [];
         state.dealerOffset = Number(state.dealerOffset) || 0;
         normalizePlayers();
         applyVariant(state.gameVariant || "classic");
         editingRoundIndex = null;
-        fileHandle = sourceFileHandle;
-        fileHandleGroupName = fileHandle ? (state.groupName || "") : null;
-        if (fileHandle) await writeSavedFileHandle(fileHandle, state.groupName);
-        else await clearSavedFileHandle();
+        fileHandle = sourceFileHandle || fileHandlesByGroup.get(state.groupId) || null;
+        fileHandleGroupId = fileHandle ? state.groupId : null;
+        if (fileHandle) await writeSavedFileHandle(fileHandle, state.groupName, state.groupId);
         updateHeader();
         renderAll();
         saveAutoStorage();
         setView(state.started ? "view-scores" : "view-archive");
-        setSaveStatus("Lokal gespeichert · OneDrive separat", "local");
-        showMessage(fileHandle
-          ? `Die Gruppe „${state.groupName || "Phase 10"}“ wurde aus „${fileHandle.name}“ geladen. Speichern überschreibt künftig diese Datei.`
-          : `Die Gruppe „${state.groupName || "Phase 10"}“ wurde geladen. Zum Speichern in derselben Datei den Speicherort einmal auswählen.`,
-          { title: "Gruppe geladen", tone: "success", mark: "✓" });
+        setSaveStatus("Lokal gespeichert · Gruppe gesichert", "local");
+        const loadMessage = "Die Gruppe „" + (state.groupName || "Phase 10") + "“ wurde geladen." +
+          (loadedFromLocalSnapshot ? " Die lokale Gerätesicherung wurde geöffnet; die zugeordnete Datei war nicht erreichbar." : fileHandle ? " Ihre Datei ist dieser Gruppe zugeordnet." : " Sie ist auf diesem Gerät vorgemerkt.") +
+          (previousGroupLocalOnly ? " Die vorherige Gruppe wurde mangels Dateizugriff nur lokal gesichert." : "");
+        showMessage(loadMessage, { title: "Gruppe geladen", tone: previousGroupLocalOnly ? "warning" : "success", mark: previousGroupLocalOnly ? "!" : "✓" });
         return true;
       } catch (e) {
         showMessage("Die Datei ist ungültig oder konnte nicht gelesen werden.", { title: "Datei konnte nicht geladen werden", tone: "warning" });
@@ -2218,31 +2297,93 @@
       }
     }
 
-    document.getElementById("btnNew").addEventListener("click", async () => {
-      const hasCurrentGroup = state.started || state.players.length || state.archivedEvenings.length;
-      const message = hasCurrentGroup
-        ? "Vor dem Wechsel wird ein Backup der aktuellen Gruppe heruntergeladen. Danach wird der lokale Spielstand durch die neue Gruppe ersetzt."
-        : "Eine neue Gruppe wird geöffnet.";
-      if (await showConfirm(message, { title: "Neue Gruppe erstellen?", confirmLabel: "Neue Gruppe", destructive: true })) {
-        if (hasCurrentGroup) {
-          const group = (state.groupName || "Phase10").replace(/[^a-z0-9_-]/gi, "_");
-          const dateStr = new Date().toISOString().slice(0, 10);
-          downloadJSON({ ...state, _roundDraft: roundDraft }, group + "_VorNeueGruppe_" + dateStr + ".json");
-        }
-        await fileHandleReady;
-        fileHandle = null;
-        fileHandleGroupName = null;
-        await clearSavedFileHandle();
-        roundDraft = null;
-        state = defaultState();
-        editingRoundIndex = null;
-        setupFormData = [];
-        renderSetupPlayerFields();
-        updateHeader();
-        renderAll();
-        saveAutoStorage();
-        setView("view-setup");
+    const groupSwitchDialog = document.getElementById("groupSwitchDialog");
+    const groupSwitchList = document.getElementById("groupSwitchList");
+    async function openGroupSwitchDialog() {
+      await fileHandleReady;
+      await pendingGroupWrite;
+      await readSavedGroups();
+      const groups = [...groupRecords.values()].filter(record => record.snapshot || record.handle).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+      groupSwitchList.replaceChildren();
+      if (!groups.length) {
+        const empty = document.createElement("p");
+        empty.className = "app-dialog-message";
+        empty.textContent = "Noch keine gespeicherten Gruppen. Lade eine Gruppe oder speichere eine Datei, damit sie hier erscheint.";
+        groupSwitchList.append(empty);
+      } else {
+        groups.forEach(record => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "group-switch-item";
+          button.dataset.groupId = record.groupId;
+          const title = document.createElement("strong");
+          title.textContent = record.groupName || "Unbenannte Gruppe";
+          const meta = document.createElement("span");
+          meta.className = "group-switch-meta";
+          const round = record.snapshot?.rounds?.length;
+          const updated = record.updatedAt ? new Date(record.updatedAt).toLocaleDateString() : "";
+          meta.textContent = (record.handle ? "Datei: " + record.handle.name : "Nur auf diesem Gerät") + (Number.isFinite(round) ? " · " + round + " Runden" : "") + (updated ? " · " + updated : "");
+          if (record.groupId === state.groupId) meta.textContent = "Aktuell geöffnet";
+          button.append(title, meta);
+          groupSwitchList.append(button);
+        });
       }
+      groupSwitchDialog.showModal();
+      groupSwitchList.querySelector("button")?.focus();
+    }
+
+    document.getElementById("btnSwitchGroup").addEventListener("click", openGroupSwitchDialog);
+    document.getElementById("groupSwitchCancel").addEventListener("click", () => groupSwitchDialog.close());
+    groupSwitchDialog.addEventListener("click", async event => {
+      const button = event.target.closest("button[data-group-id]");
+      if (!button) return;
+      const record = groupRecords.get(button.dataset.groupId);
+      if (!record || record.groupId === state.groupId) { groupSwitchDialog.close(); return; }
+      groupSwitchDialog.close();
+      let handle = record.handle || fileHandlesByGroup.get(record.groupId) || null;
+      let jsonText = null;
+      let loadedFromLocalSnapshot = false;
+      if (handle) {
+        try {
+          if (handle.queryPermission) {
+            let permission = await handle.queryPermission({ mode: "read" });
+            if (permission !== "granted" && handle.requestPermission) permission = await handle.requestPermission({ mode: "read" });
+            if (permission !== "granted") throw new Error("Dateizugriff nicht erlaubt");
+          }
+          jsonText = await (await handle.getFile()).text();
+        } catch (error) {}
+      }
+      if (!jsonText && record.snapshot) {
+        const useLocalCopy = await showConfirm("Die zugeordnete Datei ist gerade nicht erreichbar. Die lokale Gerätesicherung kann älter sein. Möchtest du sie trotzdem öffnen?", { title: "Datei nicht erreichbar", confirmLabel: "Lokale Sicherung laden" });
+        if (!useLocalCopy) return;
+        jsonText = JSON.stringify(record.snapshot);
+        loadedFromLocalSnapshot = true;
+      }
+      if (!jsonText) return showMessage("Für diese Gruppe ist kein lokaler Spielstand vorhanden. Lade die zugehörige Datei über „Gruppe laden“.", { title: "Gruppe nicht verfügbar", tone: "warning" });
+      await loadStateFromJSON(jsonText, handle, loadedFromLocalSnapshot);
+    });
+
+    document.getElementById("btnNew").addEventListener("click", async () => {
+      const hasCurrentGroup = hasGroupData(state);
+      const message = hasCurrentGroup
+        ? "Die aktuell geöffnete Gruppe wird vor dem Wechsel in ihrer zugeordneten Datei oder lokal auf diesem Gerät gesichert."
+        : "Eine neue Gruppe wird geöffnet.";
+      if (!await showConfirm(message, { title: "Neue Gruppe erstellen?", confirmLabel: "Neue Gruppe", destructive: true })) return;
+      if (hasCurrentGroup && !await saveCurrentGroupBeforeLeaving(false)) return;
+      const previousGroupLocalOnly = hasCurrentGroup && lastSaveWasLocalOnly;
+      fileHandle = null;
+      fileHandleGroupId = null;
+      roundDraft = null;
+      state = defaultState();
+      state.groupId = createGroupId();
+      editingRoundIndex = null;
+      setupFormData = [];
+      renderSetupPlayerFields();
+      updateHeader();
+      renderAll();
+      saveAutoStorage();
+      setView("view-setup");
+      if (previousGroupLocalOnly) showMessage("Die vorherige Gruppe wurde nur lokal auf diesem Gerät gesichert, weil der Browser ihre Datei nicht aktualisieren konnte.", { title: "Nur lokal gesichert", tone: "warning" });
     });
 
     document.getElementById("btnTheme").addEventListener("click", () => {
@@ -2271,7 +2412,7 @@
     });
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") closeMoreMenu();
-      if (e.repeat || document.getElementById("appDialog")?.open) return;
+      if (e.repeat || document.getElementById("appDialog")?.open || groupSwitchDialog.open) return;
       const activeView = document.querySelector(".view.active")?.id;
       if (e.altKey && !e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === "p" && state.started) {
         e.preventDefault();
@@ -2358,6 +2499,13 @@
       renderSetupPlayerFields();
       setSaveStatus("Noch kein lokaler Spielstand");
     }
+    fileHandleReady.then(async () => {
+      if (hasGroupData(state)) {
+        if (!state.groupId) state.groupId = createGroupId();
+        await syncActiveFileHandle();
+        saveAutoStorage();
+      }
+    });
     try {
       const updatedTo = sessionStorage.getItem("phase10_update_notice");
       if (updatedTo) {
