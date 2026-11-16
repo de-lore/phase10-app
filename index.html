@@ -838,7 +838,7 @@
   </dialog>
 
   <script>
-    const APP_VERSION = "1.15";
+    const APP_VERSION = "1.16";
     document.getElementById("appVersion").textContent = `v${APP_VERSION}`;
     const appDialog = document.getElementById("appDialog");
     const appDialogTitle = document.getElementById("appDialogTitle");
@@ -920,6 +920,20 @@
 
     function hasGroupData(data = state) {
       return Boolean(data && (data.groupName || data.started || data.players?.length || data.eveningPlayers?.length || data.archivedEvenings?.length));
+    }
+
+    function legacyGroupId(data) {
+      const players = Array.isArray(data.players) && data.players.length ? data.players : (data.eveningPlayers || []);
+      const roster = players.map(player => String(player.name || "").trim().toLowerCase()).sort().join("|");
+      const identity = String(data.groupName || "Phase 10").trim().toLowerCase() + "|" + roster;
+      let hashA = 2166136261;
+      let hashB = 2246822519;
+      for (let i = 0; i < identity.length; i++) {
+        const code = identity.charCodeAt(i);
+        hashA = Math.imul(hashA ^ code, 16777619);
+        hashB = Math.imul(hashB ^ (code + i), 3266489917);
+      }
+      return "legacy-" + (hashA >>> 0).toString(36) + (hashB >>> 0).toString(36);
     }
 
     const COLOR_KEYS = Object.keys(COLORS);
@@ -1019,9 +1033,19 @@
 
     async function clearSavedFileHandle(groupId = state.groupId) {
       if (!groupId) return;
-      fileHandlesByGroup.delete(groupId);
-      if (fileHandleGroupId === groupId) { fileHandle = null; fileHandleGroupId = null; }
-      await writeGroupRecord(groupId, { handle: null });
+      const targetHandle = fileHandlesByGroup.get(groupId);
+      const matchingIds = [groupId];
+      if (targetHandle?.isSameEntry) {
+        for (const [otherId, otherHandle] of fileHandlesByGroup) {
+          if (otherId === groupId) continue;
+          try { if (await targetHandle.isSameEntry(otherHandle)) matchingIds.push(otherId); } catch (e) {}
+        }
+      }
+      for (const id of matchingIds) {
+        fileHandlesByGroup.delete(id);
+        if (fileHandleGroupId === id) { fileHandle = null; fileHandleGroupId = null; }
+        await writeGroupRecord(id, { handle: null });
+      }
     }
 
     async function hasFileWritePermission(handle) {
@@ -1040,6 +1064,14 @@
         if (legacy) await writeSavedFileHandle(legacy.handle, state.groupName, state.groupId);
       }
       return fileHandle;
+    }
+
+    async function findGroupIdForHandle(handle) {
+      if (!handle?.isSameEntry) return null;
+      for (const [groupId, savedHandle] of fileHandlesByGroup) {
+        try { if (await handle.isSameEntry(savedHandle)) return groupId; } catch (e) {}
+      }
+      return null;
     }
 
     async function findOtherGroupUsingFile(handle, groupId) {
@@ -1113,7 +1145,7 @@
         roundDraft = loaded._roundDraft || null;
         delete loaded._roundDraft;
         state = Object.assign(defaultState(), loaded);
-        if (hasGroupData(state) && !state.groupId) state.groupId = createGroupId();
+        if (hasGroupData(state) && !state.groupId) state.groupId = legacyGroupId(state);
         if (!Array.isArray(state.archivedEvenings)) state.archivedEvenings = [];
         state.dealerOffset = Number(state.dealerOffset) || 0;
         normalizePlayers();
@@ -2124,7 +2156,10 @@
           return true;
         }
       } catch (error) {
-        if (error.name === "AbortError") return false;
+        if (error.name === "AbortError") {
+          showMessage("Der Gruppenwechsel wurde abgebrochen. Die bisherige Gruppe bleibt geöffnet.", { title: "Wechsel abgebrochen", tone: "warning" });
+          return false;
+        }
       }
       if (window.showSaveFilePicker) {
         try {
@@ -2150,13 +2185,21 @@
           if (showSuccess) showMessage("„" + (state.groupName || handle.name) + "“ ist jetzt dieser Datei zugeordnet.", { title: "Gruppe gespeichert", tone: "success", mark: "✓" });
           return true;
         } catch (error) {
-          if (error.name === "AbortError") return false;
+          if (error.name === "AbortError") {
+            showMessage("Der Gruppenwechsel wurde abgebrochen. Die bisherige Gruppe bleibt geöffnet.", { title: "Wechsel abgebrochen", tone: "warning" });
+            return false;
+          }
         }
       }
       await writeGroupRecord(state.groupId, { groupName: state.groupName || "Unbenannte Gruppe", snapshot: data, updatedAt: Date.now() });
       lastSaveWasLocalOnly = true;
       setSaveStatus("Gruppe lokal auf diesem Gerät gesichert", "local");
-      if (showSuccess) showMessage("Dieser Browser konnte die zugeordnete Datei nicht aktualisieren. Die Gruppe wurde auf diesem Gerät gesichert und kann über „Gruppe wechseln“ wieder geöffnet werden.", { title: "Nur lokal gesichert", tone: "warning" });
+      if (showSuccess) {
+        showMessage("Dieser Browser konnte die zugeordnete Datei nicht aktualisieren. Die Gruppe wurde auf diesem Gerät gesichert. Eine gemeinsame Datei ist damit noch nicht aktualisiert.", { title: "Nur lokal gesichert", tone: "warning" });
+      } else {
+        const proceedLocally = await showConfirm("Die aktuelle Gruppe konnte nicht in eine zugeordnete Datei geschrieben werden. Sie bleibt als lokale Sicherung auf diesem Gerät und erscheint nicht in der Gruppenliste. Trotzdem wechseln?", { title: "Datei nicht gespeichert", confirmLabel: "Trotzdem wechseln" });
+        if (!proceedLocally) return false;
+      }
       return true;
     }
 
@@ -2256,10 +2299,13 @@
     });
 
     async function loadStateFromJSON(jsonText, sourceFileHandle = null, loadedFromLocalSnapshot = false) {
+      let jsonWasParsed = false;
       try {
         await fileHandleReady;
         let loaded = JSON.parse(jsonText);
+        jsonWasParsed = true;
         if (!loaded || typeof loaded !== "object") throw new Error("Ungültiger Spielstand");
+        if (!loaded.groupId) loaded.groupId = await findGroupIdForHandle(sourceFileHandle) || (hasGroupData(loaded) ? legacyGroupId(loaded) : createGroupId());
         const currentHandle = await syncActiveFileHandle();
         let sameFile = false;
         if (sourceFileHandle && currentHandle && sourceFileHandle.isSameEntry) {
@@ -2295,7 +2341,10 @@
         showMessage(loadMessage, { title: "Gruppe geladen", tone: previousGroupLocalOnly ? "warning" : "success", mark: previousGroupLocalOnly ? "!" : "✓" });
         return true;
       } catch (e) {
-        showMessage("Die Datei ist ungültig oder konnte nicht gelesen werden.", { title: "Datei konnte nicht geladen werden", tone: "warning" });
+        showMessage(
+          jsonWasParsed ? "Die JSON-Datei ist lesbar, aber der Gruppenwechsel konnte nicht abgeschlossen werden. Die bisherige Gruppe bleibt geöffnet." : "Die Datei enthält kein lesbares JSON.",
+          { title: jsonWasParsed ? "Gruppe konnte nicht geöffnet werden" : "Datei konnte nicht geladen werden", tone: "warning" }
+        );
         return false;
       }
     }
@@ -2306,12 +2355,20 @@
       await fileHandleReady;
       await pendingGroupWrite;
       await readSavedGroups();
-      const groups = [...groupRecords.values()].filter(record => record.snapshot || record.handle).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+      const candidates = [...groupRecords.values()].filter(record => Boolean(record.handle)).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+      const groups = [];
+      for (const record of candidates) {
+        let duplicate = false;
+        for (const known of groups) {
+          try { if (record.handle.isSameEntry && await record.handle.isSameEntry(known.handle)) { duplicate = true; break; } } catch (e) {}
+        }
+        if (!duplicate) groups.push(record);
+      }
       groupSwitchList.replaceChildren();
       if (!groups.length) {
         const empty = document.createElement("p");
         empty.className = "app-dialog-message";
-        empty.textContent = "Noch keine gespeicherten Gruppen. Lade eine Gruppe oder speichere eine Datei, damit sie hier erscheint.";
+        empty.textContent = "Keine Gruppen mit Dateizuordnung. Lade eine Gruppendatei oder ordne einer Gruppe über „Datei“ eine Datei zu.";
         groupSwitchList.append(empty);
       } else {
         groups.forEach(record => {
@@ -2356,7 +2413,7 @@
         const record = groupRecords.get(groupId);
         groupSwitchDialog.close();
         if (record && await showConfirm(
-          "Die Verbindung zur Datei „" + (record.handle?.name || "") + "“ wird für „" + (record.groupName || "Unbenannte Gruppe") + "“ aufgehoben. Die Datei bleibt bestehen und die lokale Gruppensicherung bleibt erhalten.",
+          "Die Verbindung zur Datei „" + (record.handle?.name || "") + "“ wird für „" + (record.groupName || "Unbenannte Gruppe") + "“ aufgehoben. Die Datei bleibt bestehen. Die lokale Sicherung bleibt nur zur Wiederherstellung auf diesem Gerät erhalten und erscheint nicht mehr in der Gruppenliste.",
           { title: "Dateizuordnung lösen?", confirmLabel: "Zuordnung lösen" }
         )) {
           await clearSavedFileHandle(groupId);
