@@ -570,6 +570,9 @@
     .app-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
     .app-dialog-actions .btn { min-width: 92px; min-height: 44px; }
     .group-switch-list { display:grid; gap:8px; max-height:min(52vh, 440px); overflow-y:auto; margin:16px 0; }
+    .group-switch-row { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:8px; align-items:center; }
+    .group-switch-unlink { min-height:44px; max-width:140px; padding:8px; white-space:normal; font-size:.8rem; }
+    @media (max-width: 480px) { .group-switch-row { grid-template-columns:1fr; } .group-switch-unlink { justify-self:end; } }
     .group-switch-item { width:100%; min-height:58px; padding:10px 12px; display:flex; flex-direction:column; align-items:flex-start; gap:3px; border:1px solid var(--border); border-radius:12px; background:var(--surface); color:var(--text); text-align:left; cursor:pointer; }
     .group-switch-item:hover, .group-switch-item:focus-visible { border-color:var(--primary); outline:2px solid color-mix(in srgb, var(--primary) 24%, transparent); }
     .group-switch-meta { color:var(--muted); font-size:.78rem; }
@@ -835,7 +838,7 @@
   </dialog>
 
   <script>
-    const APP_VERSION = "1.14";
+    const APP_VERSION = "1.15";
     document.getElementById("appVersion").textContent = `v${APP_VERSION}`;
     const appDialog = document.getElementById("appDialog");
     const appDialogTitle = document.getElementById("appDialogTitle");
@@ -2312,6 +2315,8 @@
         groupSwitchList.append(empty);
       } else {
         groups.forEach(record => {
+          const row = document.createElement("div");
+          row.className = "group-switch-row";
           const button = document.createElement("button");
           button.type = "button";
           button.className = "group-switch-item";
@@ -2325,7 +2330,17 @@
           meta.textContent = (record.handle ? "Datei: " + record.handle.name : "Nur auf diesem Gerät") + (Number.isFinite(round) ? " · " + round + " Runden" : "") + (updated ? " · " + updated : "");
           if (record.groupId === state.groupId) meta.textContent = "Aktuell geöffnet";
           button.append(title, meta);
-          groupSwitchList.append(button);
+          row.append(button);
+          if (record.handle) {
+            const unlink = document.createElement("button");
+            unlink.type = "button";
+            unlink.className = "btn ghost group-switch-unlink";
+            unlink.dataset.unlinkGroupId = record.groupId;
+            unlink.textContent = "Dateizuordnung lösen";
+            unlink.setAttribute("aria-label", "Dateizuordnung für " + (record.groupName || "Unbenannte Gruppe") + " lösen");
+            row.append(unlink);
+          }
+          groupSwitchList.append(row);
         });
       }
       groupSwitchDialog.showModal();
@@ -2335,6 +2350,21 @@
     document.getElementById("btnSwitchGroup").addEventListener("click", openGroupSwitchDialog);
     document.getElementById("groupSwitchCancel").addEventListener("click", () => groupSwitchDialog.close());
     groupSwitchDialog.addEventListener("click", async event => {
+      const unlinkButton = event.target.closest("button[data-unlink-group-id]");
+      if (unlinkButton) {
+        const groupId = unlinkButton.dataset.unlinkGroupId;
+        const record = groupRecords.get(groupId);
+        groupSwitchDialog.close();
+        if (record && await showConfirm(
+          "Die Verbindung zur Datei „" + (record.handle?.name || "") + "“ wird für „" + (record.groupName || "Unbenannte Gruppe") + "“ aufgehoben. Die Datei bleibt bestehen und die lokale Gruppensicherung bleibt erhalten.",
+          { title: "Dateizuordnung lösen?", confirmLabel: "Zuordnung lösen" }
+        )) {
+          await clearSavedFileHandle(groupId);
+          if (state.groupId === groupId) setSaveStatus("Dateizuordnung gelöst · lokal gesichert", "local");
+        }
+        await openGroupSwitchDialog();
+        return;
+      }
       const button = event.target.closest("button[data-group-id]");
       if (!button) return;
       const record = groupRecords.get(button.dataset.groupId);
